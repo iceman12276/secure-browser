@@ -10,7 +10,8 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "test:e2e": "playwright test",
-    "test": "npm run build:core && cd core && cargo test && cd .. && npm run build && playwright test"
+    "test:unit": "vitest run",
+    "test":"npm run build:core && cd core && cargo test && cd .. && npm run build && playwright test"
   },
   "dependencies": {
     "secure-browser-core": "file:./core"
@@ -23,6 +24,7 @@
     "svelte": "^5",
     "svelte-check": "^4",
     "typescript": "^5",
-    "vite": "^6"
+    "vite": "^6",
+    "vitest": "^3"
   }
 }
