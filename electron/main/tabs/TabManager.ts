@@ -74,7 +74,7 @@ export class TabManager {
     this.emit();
   }
 
-  /** Pull current title/url/nav flags off the live webContents into state. */
+  /** Pull current nav flags (canGoBack/canGoForward) off the live webContents into state. */
   refresh(id: TabId): void {
     const tab = this.find(id);
     if (!tab) return;
