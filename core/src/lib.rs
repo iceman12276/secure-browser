@@ -1,5 +1,11 @@
 #![deny(clippy::all)]
 
+mod crypto;
+mod error;
+mod kdf;
+mod storage;
+mod vault;
+
 use napi_derive::napi;
 
 /// Smoke-test function proving the JS<->Rust bridge works.
