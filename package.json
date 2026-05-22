@@ -1,0 +1,28 @@
+{
+  "name": "secure-browser",
+  "version": "0.0.0",
+  "description": "Local-first browser with an embedded zero-knowledge password manager",
+  "license": "MIT",
+  "main": "out/main/index.js",
+  "scripts": {
+    "build:core": "npm --prefix core run build",
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "test:e2e": "playwright test",
+    "test": "npm run build:core && cd core && cargo test && cd .. && npm run build && playwright test"
+  },
+  "dependencies": {
+    "secure-browser-core": "file:./core"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1",
+    "@sveltejs/vite-plugin-svelte": "^5",
+    "electron": "^33",
+    "electron-vite": "^5",
+    "svelte": "^5",
+    "svelte-check": "^4",
+    "typescript": "^5",
+    "vite": "^6"
+  }
+}
