@@ -1,0 +1,28 @@
+/* Aurora theme — cool slate, electric blue, minimal density. */
+:root {
+  --bg: #0b1220;
+  --chrome: #101a2c;
+  --chrome-hi: #152238;
+  --tab-active: #0b1220;
+  --panel: #0e1729;
+  --panel-hi: #162237;
+  --border: rgba(148, 163, 184, 0.10);
+  --border-strong: rgba(148, 163, 184, 0.22);
+  --text: #e6ecf5;
+  --text-dim: #94a3b8;
+  --text-faint: #64748b;
+  --accent: #5b9bff;
+  --accent-soft: rgba(91, 155, 255, 0.14);
+  --accent-ring: rgba(91, 155, 255, 0.30);
+  --success: #34d399;
+  --warn: #fbbf24;
+  --danger: #f87171;
+}
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
