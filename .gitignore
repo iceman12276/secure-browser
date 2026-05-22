@@ -1,0 +1,33 @@
+# Node
+node_modules/
+out/
+dist/
+*.log
+.DS_Store
+
+# electron-vite / vite
+.vite/
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Rust
+core/target/
+target/
+
+# napi build artifacts
+core/*.node
+core/index.js
+core/index.d.ts
+
+# Playwright
+test-results/
+playwright-report/
+.cache/
+
+# Visual companion scratch (superpowers brainstorming)
+.superpowers/
+
+# Design handoff bundle (reference only)
+_handoff/
+secure-browser-handoff.zip
