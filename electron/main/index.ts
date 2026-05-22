@@ -1,38 +1,15 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
-import { join } from 'node:path';
-import { coreVersion } from 'secure-browser-core';
+import { app } from 'electron';
+import { createMainWindow, type MainWindow } from './window';
+import { registerIpc } from './ipc';
 
-function createWindow(): void {
-  const win = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    show: false,
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: true,
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  });
-
-  win.once('ready-to-show', () => win.show());
-
-  if (process.env.ELECTRON_RENDERER_URL) {
-    // dev: electron-vite serves the renderer
-    void win.loadURL(process.env.ELECTRON_RENDERER_URL);
-  } else {
-    void win.loadFile(join(__dirname, '../renderer/index.html'));
-  }
-}
-
-// Single IPC handler: bridge smoke test. Returns the Rust core version.
-ipcMain.handle('core:version', () => coreVersion());
+let main: MainWindow | null = null;
 
 void app.whenReady().then(() => {
-  createWindow();
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
+  main = createMainWindow();
+  registerIpc(main);
+  // Open a default first tab.
+  main.tabManager.newTab('https://example.com');
+  (main.tabManager as unknown as { relayout: () => void }).relayout();
 });
 
 app.on('window-all-closed', () => {

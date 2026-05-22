@@ -98,6 +98,17 @@ export class TabManager {
     this.emit();
   }
 
+  /** Like applyTabState but does NOT emit (avoids recursion during broadcast). */
+  applyTabStateSilent(id: TabId, patch: Partial<TabState>): void {
+    const tab = this.find(id);
+    if (tab) Object.assign(tab.state, patch);
+  }
+
+  /** Expose the underlying view for the window layer (typed loosely on purpose). */
+  viewOf(id: TabId): ManagedView | null {
+    return this.find(id)?.view ?? null;
+  }
+
   private setActive(id: TabId): void {
     this.activeId = id;
     for (const t of this.tabs) t.view.setVisible(t.id === id);
