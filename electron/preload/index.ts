@@ -1,6 +1,15 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { TabEvent, TabId } from '../main/tabs/types';
 
+interface CredentialMetaDto {
+  id: string;
+  origin: string;
+  username: string;
+  label: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 const api = {
   coreVersion: (): Promise<string> => ipcRenderer.invoke('core:version'),
   tabs: {
@@ -14,6 +23,18 @@ const api = {
     back: (id: TabId): Promise<void> => ipcRenderer.invoke('nav:back', id),
     forward: (id: TabId): Promise<void> => ipcRenderer.invoke('nav:forward', id),
     reload: (id: TabId): Promise<void> => ipcRenderer.invoke('nav:reload', id),
+  },
+  vault: {
+    status: (): Promise<{ initialized: boolean; unlocked: boolean }> =>
+      ipcRenderer.invoke('vault:status'),
+    init: (pw: string): Promise<void> => ipcRenderer.invoke('vault:init', pw),
+    unlock: (pw: string): Promise<void> => ipcRenderer.invoke('vault:unlock', pw),
+    lock: (): Promise<void> => ipcRenderer.invoke('vault:lock'),
+    list: (): Promise<CredentialMetaDto[]> => ipcRenderer.invoke('vault:list'),
+    add: (origin: string, username: string, secret: string, label: string): Promise<string> =>
+      ipcRenderer.invoke('vault:add', origin, username, secret, label),
+    getSecret: (id: string): Promise<string> => ipcRenderer.invoke('vault:getSecret', id),
+    delete: (id: string): Promise<void> => ipcRenderer.invoke('vault:delete', id),
   },
   /** Subscribe to tab-state pushes. Returns an unsubscribe fn. */
   onTabEvent: (cb: (event: TabEvent) => void): (() => void) => {
