@@ -1,6 +1,6 @@
 import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test';
 import { join } from 'node:path';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { getChromePage } from './helpers';
 
@@ -25,6 +25,11 @@ async function launch(): Promise<void> {
 
 test.afterEach(async () => {
   await app.close();
+});
+
+test.afterAll(() => {
+  // Clean up the temp userData dir so sb-e2e-* dirs don't linger in /tmp.
+  rmSync(userDataDir, { recursive: true, force: true });
 });
 
 test('create vault, add a credential, reveal it', async () => {
