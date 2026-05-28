@@ -4,7 +4,7 @@ use hkdf::Hkdf;
 use ml_kem::kem::{Decapsulate, Encapsulate};
 use ml_kem::{EncodedSizeUser, KemCore, MlKem768};
 use sha2::Sha256;
-use zeroize::Zeroizing;
+use zeroize::{Zeroize, Zeroizing};
 
 use crate::error::{VaultError, VaultResult};
 
@@ -33,11 +33,12 @@ pub fn encrypt_secret(plaintext: &[u8]) -> VaultResult<EncryptedRecord> {
 
     // VERIFY against your resolved ml-kem version (see plan callout).
     let (dk, ek) = MlKem768::generate(&mut rng);
-    let (kem_ct, shared) = ek
+    let (kem_ct, mut shared) = ek
         .encapsulate(&mut rng)
         .map_err(|_| VaultError::Crypto("ml-kem encapsulate failed".into()))?;
 
     let aes_key = derive_aes_key(shared.as_ref());
+    shared.zeroize(); // wipe the KEM shared secret (HKDF IKM) once it's consumed
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&*aes_key));
     let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
     let aes_ct = cipher
@@ -68,10 +69,11 @@ pub fn decrypt_secret(rec: &EncryptedRecord) -> VaultResult<Zeroizing<Vec<u8>>> 
         .as_slice()
         .try_into()
         .map_err(|_| VaultError::Crypto("bad kem_ct length".into()))?;
-    let shared = DecapsulationKey::decapsulate(&dk, kem_ct)
+    let mut shared = DecapsulationKey::decapsulate(&dk, kem_ct)
         .map_err(|_| VaultError::Crypto("ml-kem decapsulate failed".into()))?;
 
     let aes_key = derive_aes_key(shared.as_ref());
+    shared.zeroize(); // wipe the KEM shared secret (HKDF IKM) once it's consumed
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&*aes_key));
     let nonce = Nonce::from_slice(&rec.aes_nonce);
     let pt = cipher
