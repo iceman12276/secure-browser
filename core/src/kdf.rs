@@ -15,7 +15,11 @@ pub struct KdfParams {
 impl Default for KdfParams {
     fn default() -> Self {
         // 64 MiB, 3 iterations, 4 lanes — a sane interactive default.
-        KdfParams { m_cost_kib: 64 * 1024, t_cost: 3, p_cost: 4 }
+        KdfParams {
+            m_cost_kib: 64 * 1024,
+            t_cost: 3,
+            p_cost: 4,
+        }
     }
 }
 

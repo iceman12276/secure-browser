@@ -51,7 +51,9 @@ impl Vault {
     /// Construct a vault bound to a per-user data directory.
     #[napi(constructor)]
     pub fn new(dir: String) -> Self {
-        Vault { state: Mutex::new(VaultState::new(dir)) }
+        Vault {
+            state: Mutex::new(VaultState::new(dir)),
+        }
     }
 
     #[napi]
@@ -66,12 +68,20 @@ impl Vault {
 
     #[napi]
     pub fn init_vault(&self, master_pw: String) -> napi::Result<()> {
-        self.state.lock().unwrap().init(&master_pw).map_err(Into::into)
+        self.state
+            .lock()
+            .unwrap()
+            .init(&master_pw)
+            .map_err(Into::into)
     }
 
     #[napi]
     pub fn unlock(&self, master_pw: String) -> napi::Result<()> {
-        self.state.lock().unwrap().unlock(&master_pw).map_err(Into::into)
+        self.state
+            .lock()
+            .unwrap()
+            .unlock(&master_pw)
+            .map_err(Into::into)
     }
 
     #[napi]
@@ -108,7 +118,11 @@ impl Vault {
 
     #[napi]
     pub fn get_secret(&self, id: String) -> napi::Result<String> {
-        self.state.lock().unwrap().get_secret(&id).map_err(Into::into)
+        self.state
+            .lock()
+            .unwrap()
+            .get_secret(&id)
+            .map_err(Into::into)
     }
 
     #[napi]

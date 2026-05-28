@@ -36,7 +36,11 @@ pub struct VaultState {
 
 impl VaultState {
     pub fn new(dir: impl AsRef<Path>) -> Self {
-        VaultState { dir: dir.as_ref().to_path_buf(), conn: None, _key: None }
+        VaultState {
+            dir: dir.as_ref().to_path_buf(),
+            conn: None,
+            _key: None,
+        }
     }
 
     fn meta_path(&self) -> PathBuf {
@@ -170,7 +174,9 @@ fn b64(bytes: &[u8]) -> String {
 }
 fn b64_decode(s: &str) -> VaultResult<Vec<u8>> {
     use base64::{engine::general_purpose::STANDARD, Engine};
-    STANDARD.decode(s).map_err(|e| VaultError::Crypto(format!("b64: {e}")))
+    STANDARD
+        .decode(s)
+        .map_err(|e| VaultError::Crypto(format!("b64: {e}")))
 }
 
 #[cfg(test)]
@@ -189,7 +195,9 @@ mod tests {
         {
             let mut v = VaultState::new(&dir);
             v.init("master-pw").unwrap();
-            id = v.add_credential("https://x.com", "alice", "topsecret", "X").unwrap();
+            id = v
+                .add_credential("https://x.com", "alice", "topsecret", "X")
+                .unwrap();
             assert_eq!(v.get_secret(&id).unwrap(), "topsecret");
             v.lock();
             assert!(!v.is_unlocked());
@@ -216,7 +224,10 @@ mod tests {
             v.lock();
         }
         let mut v = VaultState::new(&dir);
-        assert!(matches!(v.unlock("wrong-pw"), Err(VaultError::WrongPassword)));
+        assert!(matches!(
+            v.unlock("wrong-pw"),
+            Err(VaultError::WrongPassword)
+        ));
         std::fs::remove_dir_all(&dir).ok();
     }
 

@@ -75,13 +75,26 @@ pub fn insert_credential(
         "INSERT INTO credentials
             (id, origin, username, label, kem_ct, kem_dk, aes_nonce, aes_ct, created_at, updated_at)
          VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?9)",
-        params![id, origin, username, label, rec.kem_ct, rec.kem_dk, rec.aes_nonce, rec.aes_ct, ts],
+        params![
+            id,
+            origin,
+            username,
+            label,
+            rec.kem_ct,
+            rec.kem_dk,
+            rec.aes_nonce,
+            rec.aes_ct,
+            ts
+        ],
     )?;
     audit(conn, "credential.add", origin)?;
     Ok(())
 }
 
-pub fn list_credentials(conn: &Connection, origin: Option<&str>) -> VaultResult<Vec<CredentialRow>> {
+pub fn list_credentials(
+    conn: &Connection,
+    origin: Option<&str>,
+) -> VaultResult<Vec<CredentialRow>> {
     let map_row = |r: &rusqlite::Row<'_>| {
         Ok(CredentialRow {
             id: r.get(0)?,
@@ -98,7 +111,9 @@ pub fn list_credentials(conn: &Connection, origin: Option<&str>) -> VaultResult<
                 "SELECT id, origin, username, label, created_at, updated_at
                  FROM credentials WHERE origin = ?1 ORDER BY updated_at DESC",
             )?;
-            let v = stmt.query_map(params![o], map_row)?.collect::<Result<Vec<_>, _>>()?;
+            let v = stmt
+                .query_map(params![o], map_row)?
+                .collect::<Result<Vec<_>, _>>()?;
             v
         }
         None => {
@@ -106,7 +121,9 @@ pub fn list_credentials(conn: &Connection, origin: Option<&str>) -> VaultResult<
                 "SELECT id, origin, username, label, created_at, updated_at
                  FROM credentials ORDER BY updated_at DESC",
             )?;
-            let v = stmt.query_map([], map_row)?.collect::<Result<Vec<_>, _>>()?;
+            let v = stmt
+                .query_map([], map_row)?
+                .collect::<Result<Vec<_>, _>>()?;
             v
         }
     };
@@ -143,7 +160,10 @@ pub fn delete_credential(conn: &Connection, id: &str) -> VaultResult<()> {
 
 fn now() -> i64 {
     use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64
 }
 
 fn hex_encode(bytes: &[u8]) -> String {
@@ -174,7 +194,15 @@ mod tests {
         init_schema(&conn).unwrap();
 
         let rec = encrypt_secret(b"s3cret").unwrap();
-        insert_credential(&conn, "id1", "https://github.com", "octocat", "GitHub", &rec).unwrap();
+        insert_credential(
+            &conn,
+            "id1",
+            "https://github.com",
+            "octocat",
+            "GitHub",
+            &rec,
+        )
+        .unwrap();
 
         let all = list_credentials(&conn, None).unwrap();
         assert_eq!(all.len(), 1);

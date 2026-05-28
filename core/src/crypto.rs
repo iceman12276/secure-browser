@@ -23,7 +23,8 @@ const HKDF_INFO: &[u8] = b"secure-browser/record-aes-256-gcm/v1";
 fn derive_aes_key(shared_secret: &[u8]) -> Zeroizing<[u8; 32]> {
     let hk = Hkdf::<Sha256>::new(None, shared_secret);
     let mut key = Zeroizing::new([0u8; 32]);
-    hk.expand(HKDF_INFO, &mut *key).expect("32 is a valid HKDF length");
+    hk.expand(HKDF_INFO, &mut *key)
+        .expect("32 is a valid HKDF length");
     key
 }
 
