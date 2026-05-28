@@ -8,10 +8,25 @@
   let label = $state('');
   let revealed = $state<Record<string, string>>({});
 
-  void vaultStore.refreshStatus();
+  vaultStore.refreshStatus().catch((e) => {
+    vaultStore.error = e instanceof Error ? e.message : String(e);
+  });
 
+  async function submitMaster() {
+    await (vaultStore.initialized ? vaultStore.unlock(pw) : vaultStore.init(pw));
+    if (vaultStore.unlocked) pw = ''; // clear master password from memory on success
+  }
   async function reveal(id: string) {
-    revealed = { ...revealed, [id]: await vaultStore.reveal(id) };
+    try {
+      revealed = { ...revealed, [id]: await vaultStore.reveal(id) };
+    } catch (e) {
+      // Surface a failed reveal — never silently swallow (capstone lesson).
+      vaultStore.error = e instanceof Error ? e.message : String(e);
+    }
+  }
+  async function lockVault() {
+    await vaultStore.lock();
+    revealed = {}; // drop revealed plaintext from memory on lock
   }
   async function addCredential() {
     await vaultStore.add(origin, username, secret, label);
@@ -25,7 +40,7 @@
   {/if}
 
   {#if !vaultStore.unlocked}
-    <form onsubmit={(e) => { e.preventDefault(); vaultStore.initialized ? vaultStore.unlock(pw) : vaultStore.init(pw); }}>
+    <form onsubmit={(e) => { e.preventDefault(); submitMaster(); }}>
       <h2>{vaultStore.initialized ? 'Unlock vault' : 'Create vault'}</h2>
       <input type="password" data-testid="master-pw" aria-label="Master password" bind:value={pw} placeholder="Master password" />
       <button data-testid="vault-submit">{vaultStore.initialized ? 'Unlock' : 'Create'}</button>
@@ -33,7 +48,7 @@
   {:else}
     <header>
       <h2>Vault</h2>
-      <button class="secondary" data-testid="vault-lock" onclick={() => vaultStore.lock()}>Lock</button>
+      <button class="secondary" data-testid="vault-lock" onclick={() => lockVault()}>Lock</button>
     </header>
 
     <form onsubmit={(e) => { e.preventDefault(); addCredential(); }} data-testid="add-form">
