@@ -4,6 +4,7 @@ import { TabManager, type ViewFactory, type ManagedView } from './tabs/TabManage
 import type { TabEvent } from './tabs/types';
 
 const CHROME_HEIGHT = 88; // px reserved at top for tab strip + toolbar
+const SIDEBAR_WIDTH = 320; // px reserved at right for the vault sidebar (rendered in the chrome page)
 
 export interface MainWindow {
   baseWindow: BaseWindow;
@@ -80,10 +81,10 @@ export function createMainWindow(): MainWindow {
 
   const layout = (): void => {
     const { width, height } = baseWindow.getContentBounds();
-    chromeView.setBounds({ x: 0, y: 0, width, height: CHROME_HEIGHT });
+    chromeView.setBounds({ x: 0, y: 0, width, height }); // full window: hosts the toolbar (top strip) + the vault sidebar (right gutter)
     const active = tabManager.getActiveView();
     if (active) {
-      active.setBounds({ x: 0, y: CHROME_HEIGHT, width, height: height - CHROME_HEIGHT });
+      active.setBounds({ x: 0, y: CHROME_HEIGHT, width: Math.max(0, width - SIDEBAR_WIDTH), height: Math.max(0, height - CHROME_HEIGHT) });
     }
   };
   baseWindow.on('resize', layout);

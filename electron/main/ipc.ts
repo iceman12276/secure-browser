@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron';
 import { coreVersion } from 'secure-browser-core';
+import { vault } from './vault';
 import type { MainWindow } from './window';
 import type { TabEvent } from './tabs/types';
 
@@ -70,5 +71,34 @@ export function registerIpc(main: MainWindow): void {
     if (!isTabId(id)) throw new Error('invalid tab id');
     const view = tabManager.viewOf(id);
     (view?.webContents as unknown as { reload?: () => void } | undefined)?.reload?.();
+  });
+
+  ipcMain.handle('vault:status', () => ({
+    initialized: vault.isInitialized(),
+    unlocked: vault.isUnlocked(),
+  }));
+  ipcMain.handle('vault:init', (_e, pw: unknown) => {
+    if (typeof pw !== 'string' || pw.length === 0) throw new Error('master password required');
+    vault.initVault(pw);
+  });
+  ipcMain.handle('vault:unlock', (_e, pw: unknown) => {
+    if (typeof pw !== 'string' || pw.length === 0) throw new Error('master password required');
+    vault.unlock(pw);
+  });
+  ipcMain.handle('vault:lock', () => vault.lock());
+  ipcMain.handle('vault:list', () => vault.list());
+  ipcMain.handle('vault:add', (_e, origin: unknown, username: unknown, secret: unknown, label: unknown) => {
+    for (const v of [origin, username, secret]) {
+      if (typeof v !== 'string' || v.length === 0) throw new Error('origin, username, secret required');
+    }
+    return vault.addCredential(origin as string, username as string, secret as string, (label as string) ?? '');
+  });
+  ipcMain.handle('vault:getSecret', (_e, id: unknown) => {
+    if (typeof id !== 'string') throw new Error('credential id required');
+    return vault.getSecret(id);
+  });
+  ipcMain.handle('vault:delete', (_e, id: unknown) => {
+    if (typeof id !== 'string') throw new Error('credential id required');
+    vault.delete(id);
   });
 }
