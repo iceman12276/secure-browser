@@ -73,18 +73,19 @@ class VaultStore {
       await this.refreshStatus();
     });
   }
-  enrollTotp() {
+  enrollTotp(): Promise<{ secretBase32: string; otpauthUrl: string; qrPngBase64: string }> {
     return window.secureBrowser.mfa.enrollTotp();
   }
   confirmTotp(code: string): Promise<boolean> {
     return window.secureBrowser.mfa.confirmTotp(code);
   }
-  initAutoLock(): void {
+  initAutoLock(onLock?: () => void): void {
     window.secureBrowser.onAutoLock(() => {
       this.unlocked = false;
       this.awaitingSecondFactor = false;
       this.credentials = [];
       this.error = 'Vault auto-locked after inactivity';
+      onLock?.();
     });
   }
 }

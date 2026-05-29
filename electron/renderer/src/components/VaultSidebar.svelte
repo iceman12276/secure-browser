@@ -3,14 +3,16 @@
   import MfaEnroll from './MfaEnroll.svelte';
   import MfaPrompt from './MfaPrompt.svelte';
 
-  vaultStore.initAutoLock();
-
   let pw = $state('');
   let origin = $state('');
   let username = $state('');
   let secret = $state('');
   let label = $state('');
   let revealed = $state<Record<string, string>>({});
+
+  // Pass a callback so auto-lock also clears revealed plaintext — matching
+  // the manual lockVault() hygiene (Issue 1 fix).
+  vaultStore.initAutoLock(() => { revealed = {}; });
 
   vaultStore.refreshStatus().catch((e) => {
     vaultStore.error = e instanceof Error ? e.message : String(e);

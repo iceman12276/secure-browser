@@ -22,15 +22,20 @@
   }
 
   async function registerKey() {
-    // Begin RP ceremony in Rust; perform navigator.credentials in the chrome page.
-    const { challengeJson, stateJson } = await window.secureBrowser.webauthn.startRegistration();
-    const options = JSON.parse(challengeJson);
-    // The challenge JSON uses base64url fields; a production build should decode
-    // them to ArrayBuffers before calling create(). This wiring is exercised
-    // manually with hardware (see plan M4.7 Step 5).
-    const cred = await navigator.credentials.create({ publicKey: options.publicKey ?? options });
-    await window.secureBrowser.webauthn.finishRegistration(JSON.stringify(cred), stateJson);
-    await vaultStore.refreshStatus();
+    error = null;
+    try {
+      // Begin RP ceremony in Rust; perform navigator.credentials in the chrome page.
+      const { challengeJson, stateJson } = await window.secureBrowser.webauthn.startRegistration();
+      const options = JSON.parse(challengeJson);
+      // The challenge JSON uses base64url fields; a production build should decode
+      // them to ArrayBuffers before calling create(). This wiring is exercised
+      // manually with hardware (see plan M4.7 Step 5).
+      const cred = await navigator.credentials.create({ publicKey: options.publicKey ?? options });
+      await window.secureBrowser.webauthn.finishRegistration(JSON.stringify(cred), stateJson);
+      await vaultStore.refreshStatus();
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+    }
   }
 </script>
 
