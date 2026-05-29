@@ -19,7 +19,7 @@
   "devDependencies": {
     "@playwright/test": "^1",
     "@sveltejs/vite-plugin-svelte": "^5",
-    "electron": "^33",
+    "electron": "^42",
     "electron-vite": "^5",
     "jsdom": "^25",
     "otplib": "^13.4.0",
