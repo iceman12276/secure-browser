@@ -50,6 +50,29 @@ const api = {
     ipcRenderer.on('autofill:save-prompt', listener);
     return () => ipcRenderer.removeListener('autofill:save-prompt', listener);
   },
+  mfa: {
+    status: (): Promise<{ enrolled: boolean; awaitingSecondFactor: boolean }> =>
+      ipcRenderer.invoke('mfa:status'),
+    enrollTotp: (): Promise<{ secretBase32: string; otpauthUrl: string; qrPngBase64: string }> =>
+      ipcRenderer.invoke('mfa:enrollTotp'),
+    confirmTotp: (code: string): Promise<boolean> => ipcRenderer.invoke('mfa:confirmTotp', code),
+    verifyTotp: (code: string): Promise<boolean> => ipcRenderer.invoke('mfa:verifyTotp', code),
+  },
+  webauthn: {
+    startRegistration: (): Promise<{ challengeJson: string; stateJson: string }> =>
+      ipcRenderer.invoke('webauthn:startRegistration'),
+    finishRegistration: (response: string, state: string): Promise<void> =>
+      ipcRenderer.invoke('webauthn:finishRegistration', response, state),
+    startAuthentication: (): Promise<{ challengeJson: string; stateJson: string }> =>
+      ipcRenderer.invoke('webauthn:startAuthentication'),
+    finishAuthentication: (response: string, state: string): Promise<boolean> =>
+      ipcRenderer.invoke('webauthn:finishAuthentication', response, state),
+  },
+  onAutoLock: (cb: () => void): (() => void) => {
+    const listener = (): void => cb();
+    ipcRenderer.on('vault:auto-locked', listener);
+    return () => ipcRenderer.removeListener('vault:auto-locked', listener);
+  },
 };
 
 if (process.contextIsolated) {

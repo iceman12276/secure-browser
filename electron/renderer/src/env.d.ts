@@ -38,6 +38,19 @@ export interface SecureBrowserApi {
   };
   onTabEvent: (cb: (event: TabEvent) => void) => () => void;
   onSavePrompt: (cb: (p: SavePrompt) => void) => () => void;
+  mfa: {
+    status: () => Promise<{ enrolled: boolean; awaitingSecondFactor: boolean }>;
+    enrollTotp: () => Promise<{ secretBase32: string; otpauthUrl: string; qrPngBase64: string }>;
+    confirmTotp: (code: string) => Promise<boolean>;
+    verifyTotp: (code: string) => Promise<boolean>;
+  };
+  webauthn: {
+    startRegistration: () => Promise<{ challengeJson: string; stateJson: string }>;
+    finishRegistration: (response: string, state: string) => Promise<void>;
+    startAuthentication: () => Promise<{ challengeJson: string; stateJson: string }>;
+    finishAuthentication: (response: string, state: string) => Promise<boolean>;
+  };
+  onAutoLock: (cb: () => void) => () => void;
 }
 
 declare global {

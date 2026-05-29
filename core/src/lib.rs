@@ -4,7 +4,9 @@ mod crypto;
 mod error;
 mod kdf;
 mod storage;
+mod totp;
 mod vault;
+mod webauthn;
 
 use std::sync::Mutex;
 
@@ -26,6 +28,26 @@ pub struct CredentialMeta {
     pub label: String,
     pub created_at: i64,
     pub updated_at: i64,
+}
+
+#[napi(object)]
+pub struct TotpEnrollmentDto {
+    pub secret_base32: String,
+    pub otpauth_url: String,
+    pub qr_png_base64: String,
+}
+
+#[napi(object)]
+pub struct MfaStatus {
+    pub enrolled: bool,
+    pub awaiting_second_factor: bool,
+}
+
+/// Challenge + opaque state pair for a WebAuthn ceremony.
+#[napi(object)]
+pub struct WebauthnChallenge {
+    pub challenge_json: String,
+    pub state_json: String,
 }
 
 impl From<crate::vault::CredentialMeta> for CredentialMeta {
@@ -128,5 +150,92 @@ impl Vault {
     #[napi]
     pub fn delete(&self, id: String) -> napi::Result<()> {
         self.state.lock().unwrap().delete(&id).map_err(Into::into)
+    }
+
+    #[napi]
+    pub fn mfa_status(&self) -> MfaStatus {
+        let s = self.state.lock().unwrap();
+        MfaStatus {
+            enrolled: s.mfa_enrolled(),
+            awaiting_second_factor: s.awaiting_second_factor(),
+        }
+    }
+
+    #[napi]
+    pub fn enroll_totp(&self) -> napi::Result<TotpEnrollmentDto> {
+        self.state
+            .lock()
+            .unwrap()
+            .enroll_totp()
+            .map(|e| TotpEnrollmentDto {
+                secret_base32: e.secret_base32,
+                otpauth_url: e.otpauth_url,
+                qr_png_base64: e.qr_png_base64,
+            })
+            .map_err(Into::into)
+    }
+
+    #[napi]
+    pub fn confirm_totp(&self, code: String) -> napi::Result<bool> {
+        self.state
+            .lock()
+            .unwrap()
+            .confirm_totp(&code)
+            .map_err(Into::into)
+    }
+
+    #[napi]
+    pub fn verify_totp(&self, code: String) -> napi::Result<bool> {
+        self.state
+            .lock()
+            .unwrap()
+            .verify_totp(&code)
+            .map_err(Into::into)
+    }
+
+    #[napi]
+    pub fn start_webauthn_registration(&self) -> napi::Result<WebauthnChallenge> {
+        let (challenge_json, state_json) =
+            self.state.lock().unwrap().start_webauthn_registration()?;
+        Ok(WebauthnChallenge {
+            challenge_json,
+            state_json,
+        })
+    }
+
+    #[napi]
+    pub fn finish_webauthn_registration(
+        &self,
+        response: String,
+        state: String,
+    ) -> napi::Result<()> {
+        self.state
+            .lock()
+            .unwrap()
+            .finish_webauthn_registration(&response, &state)
+            .map_err(Into::into)
+    }
+
+    #[napi]
+    pub fn start_webauthn_authentication(&self) -> napi::Result<WebauthnChallenge> {
+        let (challenge_json, state_json) =
+            self.state.lock().unwrap().start_webauthn_authentication()?;
+        Ok(WebauthnChallenge {
+            challenge_json,
+            state_json,
+        })
+    }
+
+    #[napi]
+    pub fn finish_webauthn_authentication(
+        &self,
+        response: String,
+        state: String,
+    ) -> napi::Result<bool> {
+        self.state
+            .lock()
+            .unwrap()
+            .finish_webauthn_authentication(&response, &state)
+            .map_err(Into::into)
     }
 }

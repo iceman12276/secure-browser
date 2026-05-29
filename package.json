@@ -22,6 +22,7 @@
     "electron": "^33",
     "electron-vite": "^5",
     "jsdom": "^25",
+    "otplib": "^13.4.0",
     "svelte": "^5",
     "svelte-check": "^4",
     "typescript": "^5",

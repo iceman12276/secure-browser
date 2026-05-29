@@ -9,6 +9,11 @@ use crate::crypto::{decrypt_secret, encrypt_secret};
 use crate::error::{VaultError, VaultResult};
 use crate::kdf::{derive_key, KdfParams};
 use crate::storage;
+use crate::storage::{
+    confirm_totp, has_passkeys, list_passkeys, put_passkey, put_totp, totp_confirmed, totp_record,
+};
+use crate::totp;
+use crate::webauthn;
 
 #[derive(Serialize, Deserialize)]
 struct VaultMeta {
@@ -32,6 +37,9 @@ pub struct VaultState {
     conn: Option<Connection>,
     // Kept only to prove zeroize-on-lock; not read after unlock.
     _key: Option<Zeroizing<[u8; 32]>>,
+    awaiting_second_factor: bool,
+    // The base32 TOTP secret, decrypted into memory only while awaiting/using MFA.
+    totp_secret: Option<Zeroizing<String>>,
 }
 
 impl VaultState {
@@ -40,6 +48,8 @@ impl VaultState {
             dir: dir.as_ref().to_path_buf(),
             conn: None,
             _key: None,
+            awaiting_second_factor: false,
+            totp_secret: None,
         }
     }
 
@@ -55,7 +65,33 @@ impl VaultState {
     }
 
     pub fn is_unlocked(&self) -> bool {
-        self.conn.is_some()
+        self.conn.is_some() && !self.awaiting_second_factor
+    }
+
+    pub fn awaiting_second_factor(&self) -> bool {
+        self.awaiting_second_factor
+    }
+
+    /// True if any second factor is enrolled (TOTP confirmed or a passkey).
+    pub fn mfa_enrolled(&self) -> bool {
+        match self.conn.as_ref() {
+            Some(c) => totp_confirmed(c).unwrap_or(false) || has_passkeys(c).unwrap_or(false),
+            None => false,
+        }
+    }
+
+    /// Guard for credential ops: requires DB open AND second factor satisfied.
+    fn conn(&self) -> VaultResult<&Connection> {
+        if self.awaiting_second_factor {
+            return Err(VaultError::Locked);
+        }
+        self.conn.as_ref().ok_or(VaultError::Locked)
+    }
+
+    /// DB access that is allowed while awaiting the second factor
+    /// (needed to read the TOTP secret / passkeys during verification).
+    fn conn_preauth(&self) -> VaultResult<&Connection> {
+        self.conn.as_ref().ok_or(VaultError::Locked)
     }
 
     /// First-time setup: generate salt, write meta, create + key the DB.
@@ -91,7 +127,23 @@ impl VaultState {
         let salt = b64_decode(&meta.salt_b64)?;
         let key = derive_key(master_pw.as_bytes(), &salt, meta.kdf)?;
         let conn = storage::open_encrypted(&self.db_path().to_string_lossy(), &key)?;
-        storage::audit(&conn, "vault.unlock", "")?;
+        storage::audit(&conn, "vault.unlock.phase1", "")?;
+
+        // Decide whether a second factor is required.
+        let totp_present = totp_confirmed(&conn)?;
+        let passkeys_present = has_passkeys(&conn)?;
+        self.awaiting_second_factor = totp_present || passkeys_present;
+
+        // If TOTP is enrolled, decrypt its secret into memory for verify().
+        if totp_present {
+            if let Some((rec, _)) = totp_record(&conn)? {
+                let pt = decrypt_secret(&rec)?;
+                let s = String::from_utf8(pt.to_vec())
+                    .map_err(|e| VaultError::Crypto(format!("totp utf8: {e}")))?;
+                self.totp_secret = Some(Zeroizing::new(s));
+            }
+        }
+
         self.conn = Some(conn);
         self._key = Some(key);
         Ok(())
@@ -101,10 +153,8 @@ impl VaultState {
     pub fn lock(&mut self) {
         self.conn = None; // closes the SQLCipher connection
         self._key = None; // Zeroizing wipes the key on drop
-    }
-
-    fn conn(&self) -> VaultResult<&Connection> {
-        self.conn.as_ref().ok_or(VaultError::Locked)
+        self.awaiting_second_factor = false;
+        self.totp_secret = None;
     }
 
     pub fn add_credential(
@@ -148,6 +198,87 @@ impl VaultState {
     pub fn delete(&self, id: &str) -> VaultResult<()> {
         let conn = self.conn()?;
         storage::delete_credential(conn, id)
+    }
+
+    // ---- TOTP ----
+
+    /// Enroll: generate a secret, encrypt + store it (unconfirmed). Returns
+    /// the secret/otpauth/QR for the user to scan. Requires full unlock.
+    pub fn enroll_totp(&self) -> VaultResult<totp::TotpEnrollment> {
+        let conn = self.conn()?;
+        let enrollment = totp::generate_enrollment()?;
+        let rec = encrypt_secret(enrollment.secret_base32.as_bytes())?;
+        put_totp(conn, &rec)?;
+        Ok(enrollment)
+    }
+
+    /// Confirm enrollment by verifying a code, then mark confirmed.
+    pub fn confirm_totp(&self, code: &str) -> VaultResult<bool> {
+        let conn = self.conn()?;
+        let (rec, _) = totp_record(conn)?.ok_or(VaultError::NotFound("totp".into()))?;
+        let pt: Zeroizing<Vec<u8>> = decrypt_secret(&rec)?;
+        let secret = Zeroizing::new(
+            String::from_utf8(pt.to_vec())
+                .map_err(|e| VaultError::Crypto(format!("totp utf8: {e}")))?,
+        );
+        if !totp::verify(&secret, code)? {
+            return Ok(false);
+        }
+        confirm_totp(conn)?;
+        Ok(true)
+    }
+
+    /// Second-factor verification during unlock.
+    pub fn verify_totp(&mut self, code: &str) -> VaultResult<bool> {
+        if !self.awaiting_second_factor {
+            return Ok(true);
+        }
+        let secret = self.totp_secret.as_ref().ok_or(VaultError::Locked)?;
+        if totp::verify(secret, code)? {
+            self.awaiting_second_factor = false;
+            self.totp_secret = None;
+            storage::audit(self.conn_preauth()?, "vault.unlock.totp", "")?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    // ---- WebAuthn ----
+
+    pub fn start_webauthn_registration(&self) -> VaultResult<(String, String)> {
+        let _ = self.conn()?; // requires full unlock to register a new factor
+        webauthn::start_registration()
+    }
+
+    pub fn finish_webauthn_registration(&self, response: &str, state: &str) -> VaultResult<()> {
+        let conn = self.conn()?;
+        let passkey_json = webauthn::finish_registration(response, state)?;
+        let id = new_id();
+        put_passkey(conn, &id, &passkey_json)?;
+        Ok(())
+    }
+
+    pub fn start_webauthn_authentication(&self) -> VaultResult<(String, String)> {
+        let conn = self.conn_preauth()?;
+        let passkeys = list_passkeys(conn)?;
+        webauthn::start_authentication(&passkeys)
+    }
+
+    pub fn finish_webauthn_authentication(
+        &mut self,
+        response: &str,
+        state: &str,
+    ) -> VaultResult<bool> {
+        if !self.awaiting_second_factor {
+            return Ok(true);
+        }
+        let ok = webauthn::finish_authentication(response, state)?;
+        if ok {
+            self.awaiting_second_factor = false;
+            storage::audit(self.conn_preauth()?, "vault.unlock.webauthn", "")?;
+        }
+        Ok(ok)
     }
 }
 
@@ -238,6 +369,43 @@ mod tests {
         v.init("pw").unwrap();
         let mut v2 = VaultState::new(&dir);
         assert!(matches!(v2.init("pw"), Err(VaultError::AlreadyInitialized)));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn totp_gates_unlock_after_enrollment() {
+        use crate::totp::build_totp;
+        let dir = temp_dir();
+        let secret_b32;
+        {
+            let mut v = VaultState::new(&dir);
+            v.init("pw").unwrap();
+            // No MFA yet → fully unlocked.
+            assert!(v.is_unlocked());
+            let e = v.enroll_totp().unwrap();
+            secret_b32 = e.secret_base32.clone();
+            let code = build_totp(&secret_b32).unwrap().generate_current().unwrap();
+            assert!(v.confirm_totp(&code).unwrap());
+            v.lock();
+        }
+        {
+            let mut v = VaultState::new(&dir);
+            v.unlock("pw").unwrap();
+            // DB opened, but second factor required.
+            assert!(v.awaiting_second_factor());
+            assert!(!v.is_unlocked());
+            assert!(matches!(v.list(), Err(VaultError::Locked)));
+
+            // Wrong code stays locked.
+            assert!(!v.verify_totp("000000").unwrap());
+            assert!(!v.is_unlocked());
+
+            // Correct code completes unlock.
+            let code = build_totp(&secret_b32).unwrap().generate_current().unwrap();
+            assert!(v.verify_totp(&code).unwrap());
+            assert!(v.is_unlocked());
+            v.list().unwrap();
+        }
         std::fs::remove_dir_all(&dir).ok();
     }
 }

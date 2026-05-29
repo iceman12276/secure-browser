@@ -1,5 +1,7 @@
 <script lang="ts">
   import { vaultStore } from '../lib/vaultStore.svelte';
+  import MfaEnroll from './MfaEnroll.svelte';
+  import MfaPrompt from './MfaPrompt.svelte';
 
   let pw = $state('');
   let origin = $state('');
@@ -7,6 +9,11 @@
   let secret = $state('');
   let label = $state('');
   let revealed = $state<Record<string, string>>({});
+
+  vaultStore.initAutoLock();
+
+  // Clear revealed plaintext whenever the vault locks (manual or auto-lock).
+  $effect(() => { if (!vaultStore.unlocked) revealed = {}; });
 
   vaultStore.refreshStatus().catch((e) => {
     vaultStore.error = e instanceof Error ? e.message : String(e);
@@ -39,7 +46,9 @@
     <p class="error" data-testid="vault-error">{vaultStore.error}</p>
   {/if}
 
-  {#if !vaultStore.unlocked}
+  {#if vaultStore.awaitingSecondFactor}
+    <MfaPrompt />
+  {:else if !vaultStore.unlocked}
     <form onsubmit={(e) => { e.preventDefault(); submitMaster(); }}>
       <h2>{vaultStore.initialized ? 'Unlock vault' : 'Create vault'}</h2>
       <input type="password" data-testid="master-pw" aria-label="Master password" bind:value={pw} placeholder="Master password" />
@@ -73,6 +82,7 @@
         </li>
       {/each}
     </ul>
+    <MfaEnroll />
   {/if}
 </aside>
 

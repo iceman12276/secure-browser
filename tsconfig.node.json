@@ -9,5 +9,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["electron/main/**/*.ts", "electron/preload/**/*.ts", "electron.vite.config.ts"]
+  "include": ["electron/main/**/*.ts", "electron/preload/**/*.ts", "electron/content/messages.ts", "electron.vite.config.ts"]
 }

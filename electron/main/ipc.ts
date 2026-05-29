@@ -4,6 +4,7 @@ import { vault } from './vault';
 import type { MainWindow } from './window';
 import type { TabEvent } from './tabs/types';
 import { registerAutofill } from './autofill';
+import type { AutoLock } from './autolock';
 
 function isHttpUrl(value: unknown): value is string {
   if (typeof value !== 'string') return false;
@@ -19,7 +20,7 @@ function isTabId(value: unknown): value is string {
   return typeof value === 'string' && /^tab-\d+$/.test(value);
 }
 
-export function registerIpc(main: MainWindow): void {
+export function registerIpc(main: MainWindow, autoLock: AutoLock): void {
   const { tabManager } = main;
   const relayout = () => (tabManager as unknown as { relayout: () => void }).relayout();
 
@@ -84,23 +85,54 @@ export function registerIpc(main: MainWindow): void {
   });
   ipcMain.handle('vault:unlock', (_e, pw: unknown) => {
     if (typeof pw !== 'string' || pw.length === 0) throw new Error('master password required');
+    autoLock.touch();
     vault.unlock(pw);
   });
   ipcMain.handle('vault:lock', () => vault.lock());
-  ipcMain.handle('vault:list', () => vault.list());
+  ipcMain.handle('vault:list', () => {
+    autoLock.touch();
+    return vault.list();
+  });
   ipcMain.handle('vault:add', (_e, origin: unknown, username: unknown, secret: unknown, label: unknown) => {
     for (const v of [origin, username, secret]) {
       if (typeof v !== 'string' || v.length === 0) throw new Error('origin, username, secret required');
     }
+    autoLock.touch();
     return vault.addCredential(origin as string, username as string, secret as string, (label as string) ?? '');
   });
   ipcMain.handle('vault:getSecret', (_e, id: unknown) => {
     if (typeof id !== 'string') throw new Error('credential id required');
+    autoLock.touch();
     return vault.getSecret(id);
   });
   ipcMain.handle('vault:delete', (_e, id: unknown) => {
     if (typeof id !== 'string') throw new Error('credential id required');
     vault.delete(id);
+  });
+
+  ipcMain.handle('mfa:status', () => vault.mfaStatus());
+  ipcMain.handle('mfa:enrollTotp', () => { autoLock.touch(); return vault.enrollTotp(); });
+  ipcMain.handle('mfa:confirmTotp', (_e, code: unknown) => {
+    if (typeof code !== 'string') throw new Error('code required');
+    autoLock.touch();
+    return vault.confirmTotp(code);
+  });
+  ipcMain.handle('mfa:verifyTotp', (_e, code: unknown) => {
+    if (typeof code !== 'string') throw new Error('code required');
+    autoLock.touch();
+    return vault.verifyTotp(code);
+  });
+  ipcMain.handle('webauthn:startRegistration', () => { autoLock.touch(); return vault.startWebauthnRegistration(); });
+  ipcMain.handle('webauthn:finishRegistration', (_e, response: unknown, state: unknown) => {
+    if (typeof response !== 'string' || typeof state !== 'string') throw new Error('response+state required');
+    autoLock.touch();
+    return vault.finishWebauthnRegistration(response, state);
+  });
+  ipcMain.handle('webauthn:startAuthentication', () => { autoLock.touch(); return vault.startWebauthnAuthentication(); });
+  ipcMain.handle('webauthn:finishAuthentication', (_e, response: unknown, state: unknown) => {
+    if (typeof response !== 'string' || typeof state !== 'string') throw new Error('response+state required');
+    autoLock.touch();
+    return vault.finishWebauthnAuthentication(response, state);
   });
 
   registerAutofill(main);
