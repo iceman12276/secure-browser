@@ -11,8 +11,8 @@ use crate::error::{VaultError, VaultResult};
 /// For the Electron dev build the chrome view is served over http://localhost.
 pub fn build_rp() -> VaultResult<Webauthn> {
     let rp_id = "localhost";
-    let rp_origin =
-        Url::parse("http://localhost").map_err(|e| VaultError::Crypto(format!("rp origin: {e}")))?;
+    let rp_origin = Url::parse("http://localhost")
+        .map_err(|e| VaultError::Crypto(format!("rp origin: {e}")))?;
     WebauthnBuilder::new(rp_id, &rp_origin)
         .and_then(|b| b.rp_name("Secure Browser").build())
         .map_err(|e| VaultError::Crypto(format!("webauthn build: {e}")))

@@ -9,7 +9,9 @@ use crate::crypto::{decrypt_secret, encrypt_secret};
 use crate::error::{VaultError, VaultResult};
 use crate::kdf::{derive_key, KdfParams};
 use crate::storage;
-use crate::storage::{confirm_totp, has_passkeys, list_passkeys, put_passkey, put_totp, totp_confirmed, totp_record};
+use crate::storage::{
+    confirm_totp, has_passkeys, list_passkeys, put_passkey, put_totp, totp_confirmed, totp_record,
+};
 use crate::totp;
 use crate::webauthn;
 
@@ -214,8 +216,11 @@ impl VaultState {
     pub fn confirm_totp(&self, code: &str) -> VaultResult<bool> {
         let conn = self.conn()?;
         let (rec, _) = totp_record(conn)?.ok_or(VaultError::NotFound("totp".into()))?;
-        let secret = String::from_utf8(decrypt_secret(&rec)?.to_vec())
-            .map_err(|e| VaultError::Crypto(format!("totp utf8: {e}")))?;
+        let pt: Zeroizing<Vec<u8>> = decrypt_secret(&rec)?;
+        let secret = Zeroizing::new(
+            String::from_utf8(pt.to_vec())
+                .map_err(|e| VaultError::Crypto(format!("totp utf8: {e}")))?,
+        );
         if !totp::verify(&secret, code)? {
             return Ok(false);
         }
@@ -232,9 +237,7 @@ impl VaultState {
         if totp::verify(secret, code)? {
             self.awaiting_second_factor = false;
             self.totp_secret = None;
-            if let Ok(c) = self.conn_preauth() {
-                storage::audit(c, "vault.unlock.totp", "")?;
-            }
+            storage::audit(self.conn_preauth()?, "vault.unlock.totp", "")?;
             Ok(true)
         } else {
             Ok(false)
@@ -273,9 +276,7 @@ impl VaultState {
         let ok = webauthn::finish_authentication(response, state)?;
         if ok {
             self.awaiting_second_factor = false;
-            if let Ok(c) = self.conn_preauth() {
-                storage::audit(c, "vault.unlock.webauthn", "")?;
-            }
+            storage::audit(self.conn_preauth()?, "vault.unlock.webauthn", "")?;
         }
         Ok(ok)
     }
