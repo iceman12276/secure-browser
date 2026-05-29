@@ -5,12 +5,17 @@ class VaultStore {
   unlocked = $state(false);
   credentials = $state<CredentialMeta[]>([]);
   error = $state<string | null>(null);
+  awaitingSecondFactor = $state(false);
+  mfaEnrolled = $state(false);
 
   async refreshStatus(): Promise<void> {
     const s = await window.secureBrowser.vault.status();
     this.initialized = s.initialized;
     this.unlocked = s.unlocked;
-    if (this.unlocked) await this.refreshList();
+    const mfa = await window.secureBrowser.mfa.status();
+    this.awaitingSecondFactor = mfa.awaitingSecondFactor;
+    this.mfaEnrolled = mfa.enrolled;
+    if (this.unlocked && !this.awaitingSecondFactor) await this.refreshList();
   }
 
   async refreshList(): Promise<void> {
@@ -60,6 +65,27 @@ class VaultStore {
   }
   reveal(id: string): Promise<string> {
     return window.secureBrowser.vault.getSecret(id);
+  }
+  verifyTotp(code: string): Promise<void> {
+    return this.run(async () => {
+      const ok = await window.secureBrowser.mfa.verifyTotp(code);
+      if (!ok) throw new Error('Invalid authentication code');
+      await this.refreshStatus();
+    });
+  }
+  enrollTotp() {
+    return window.secureBrowser.mfa.enrollTotp();
+  }
+  confirmTotp(code: string): Promise<boolean> {
+    return window.secureBrowser.mfa.confirmTotp(code);
+  }
+  initAutoLock(): void {
+    window.secureBrowser.onAutoLock(() => {
+      this.unlocked = false;
+      this.awaitingSecondFactor = false;
+      this.credentials = [];
+      this.error = 'Vault auto-locked after inactivity';
+    });
   }
 }
 
