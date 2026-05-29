@@ -35,7 +35,10 @@ function captureOnSubmit(usernameSel: string | null, passwordSel: string): void 
     username: user?.value ?? '',
     secret: pw.value,
   };
-  void ipcRenderer.invoke('autofill:capture', payload);
+  ipcRenderer.invoke('autofill:capture', payload).catch((err: unknown) => {
+    // Surface capture failures — do not swallow silently.
+    console.error('[autofill] capture failed:', err instanceof Error ? err.message : String(err));
+  });
 }
 
 // Main pushes origin-matched candidate metadata (no secrets).
@@ -49,9 +52,13 @@ ipcRenderer.on('autofill:candidates', (_e, candidates: Candidate[]) => {
 
   showOverlay(anchor, candidates, (credentialId) => {
     // User gesture → request the single plaintext release for this fill.
-    void ipcRenderer
+    ipcRenderer
       .invoke('autofill:fill', { credentialId })
-      .then((res: FillResult) => fillForm(first.usernameSelector, first.passwordSelector, res));
+      .then((res: FillResult) => fillForm(first.usernameSelector, first.passwordSelector, res))
+      .catch((err: unknown) => {
+        // Surface fill failures (origin mismatch, locked vault, no credential) — do not swallow silently.
+        console.error('[autofill] fill failed:', err instanceof Error ? err.message : String(err));
+      });
   });
 });
 
