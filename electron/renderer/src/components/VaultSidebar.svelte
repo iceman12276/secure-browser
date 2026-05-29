@@ -10,9 +10,10 @@
   let label = $state('');
   let revealed = $state<Record<string, string>>({});
 
-  // Pass a callback so auto-lock also clears revealed plaintext — matching
-  // the manual lockVault() hygiene (Issue 1 fix).
-  vaultStore.initAutoLock(() => { revealed = {}; });
+  vaultStore.initAutoLock();
+
+  // Clear revealed plaintext whenever the vault locks (manual or auto-lock).
+  $effect(() => { if (!vaultStore.unlocked) revealed = {}; });
 
   vaultStore.refreshStatus().catch((e) => {
     vaultStore.error = e instanceof Error ? e.message : String(e);
