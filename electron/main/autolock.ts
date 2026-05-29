@@ -24,7 +24,8 @@ export class AutoLock {
   }
 
   private tick(): void {
-    if (!vault.isUnlocked()) return;
+    const open = vault.isUnlocked() || vault.mfaStatus().awaitingSecondFactor;
+    if (!open) return;
     if (Date.now() - this.lastActivity >= IDLE_MS) {
       vault.lock();
       this.main.chromeView.webContents.send('vault:auto-locked');
