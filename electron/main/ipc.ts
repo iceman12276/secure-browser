@@ -3,6 +3,7 @@ import { coreVersion } from 'secure-browser-core';
 import { vault } from './vault';
 import type { MainWindow } from './window';
 import type { TabEvent } from './tabs/types';
+import { registerAutofill } from './autofill';
 
 function isHttpUrl(value: unknown): value is string {
   if (typeof value !== 'string') return false;
@@ -101,4 +102,6 @@ export function registerIpc(main: MainWindow): void {
     if (typeof id !== 'string') throw new Error('credential id required');
     vault.delete(id);
   });
+
+  registerAutofill(main);
 }

@@ -33,8 +33,10 @@ export interface SecureBrowserApi {
     add: (origin: string, username: string, secret: string, label: string) => Promise<string>;
     getSecret: (id: string) => Promise<string>;
     delete: (id: string) => Promise<void>;
+    saveFromPrompt: (p: { origin: string; username: string; secret: string }) => Promise<string>;
   };
   onTabEvent: (cb: (event: TabEvent) => void) => () => void;
+  onSavePrompt: (cb: (p: { origin: string; username: string; secret: string }) => void) => () => void;
 }
 
 declare global {
