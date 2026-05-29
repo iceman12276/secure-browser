@@ -54,6 +54,8 @@ export interface SecureBrowserApi {
     finishRegistration: (response: string, state: string) => Promise<void>;
     startAuthentication: () => Promise<{ challengeJson: string; stateJson: string }>;
     finishAuthentication: (response: string, state: string) => Promise<boolean>;
+    nativeRegister: (challengeJson: string) => Promise<string>;
+    nativeAuthenticate: (challengeJson: string) => Promise<string>;
   };
   onAutoLock: (cb: () => void) => () => void;
 }

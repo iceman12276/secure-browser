@@ -55,9 +55,10 @@
     {#if !vaultStore.totpEnrolled}
       <button data-testid="totp-begin" onclick={begin}>Set up authenticator app</button>
     {/if}
-    <button data-testid="webauthn-register" onclick={registerKey}>
+    <button data-testid="webauthn-register" onclick={registerKey} disabled={vaultStore.webauthnBusy}>
       {vaultStore.hasPasskey ? 'Register another security key / passkey' : 'Register security key / passkey'}
     </button>
+    {#if vaultStore.webauthnBusy}<p class="hint" data-testid="webauthn-busy">👆 Touch your security key…</p>{/if}
     {#if error}<p class="error">{error}</p>{/if}
   {/if}
 </section>
@@ -65,5 +66,6 @@
 <style>
   .mfa-enroll { border-top: 1px solid #444; margin-top: 12px; padding-top: 12px; }
   .error { color: #f28b82; }
+  .hint { color: #8ab4f8; }
   img { width: 160px; height: 160px; }
 </style>

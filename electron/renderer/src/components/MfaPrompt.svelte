@@ -27,12 +27,15 @@
       type="button"
       data-testid="webauthn-unlock"
       onclick={() => vaultStore.authenticateWebauthn()}
+      disabled={vaultStore.webauthnBusy}
     >
       Unlock with security key
     </button>
+    {#if vaultStore.webauthnBusy}<p class="hint" data-testid="webauthn-busy">👆 Touch your security key…</p>{/if}
   {/if}
 </section>
 
 <style>
   .divider { color: #888; margin: 8px 0; text-align: center; }
+  .hint { color: #8ab4f8; }
 </style>

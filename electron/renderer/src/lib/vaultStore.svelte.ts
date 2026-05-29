@@ -10,6 +10,8 @@ class VaultStore {
   mfaEnrolled = $state(false);
   totpEnrolled = $state(false);
   hasPasskey = $state(false);
+  /** True while a native security-key ceremony is in flight (awaiting the user's touch). */
+  webauthnBusy = $state(false);
 
   async refreshStatus(): Promise<void> {
     const s = await window.secureBrowser.vault.status();
@@ -84,19 +86,29 @@ class VaultStore {
   confirmTotp(code: string): Promise<boolean> {
     return window.secureBrowser.mfa.confirmTotp(code);
   }
-  /** Register a security key / passkey as a second factor (hardware ceremony). */
+  /** Register a security key / passkey as a second factor (native CTAP2 ceremony). */
   registerWebauthn(): Promise<void> {
     return this.run(async () => {
-      await registerSecurityKey();
-      await this.refreshStatus();
+      this.webauthnBusy = true;
+      try {
+        await registerSecurityKey();
+        await this.refreshStatus();
+      } finally {
+        this.webauthnBusy = false;
+      }
     });
   }
   /** Clear the awaiting-second-factor gate by asserting a registered security key. */
   authenticateWebauthn(): Promise<void> {
     return this.run(async () => {
-      const ok = await authenticateSecurityKey();
-      if (!ok) throw new Error('Security key was not accepted');
-      await this.refreshStatus();
+      this.webauthnBusy = true;
+      try {
+        const ok = await authenticateSecurityKey();
+        if (!ok) throw new Error('Security key was not accepted');
+        await this.refreshStatus();
+      } finally {
+        this.webauthnBusy = false;
+      }
     });
   }
   initAutoLock(): void {
