@@ -36,14 +36,17 @@ async function navActiveTab(url: string): Promise<void> {
   await chrome.getByTestId('address-bar').fill(url);
   await chrome.getByTestId('address-bar').press('Enter');
   // Wait for the tab's webContents to finish loading the new URL.
+  // Uses the same predicate as inTab (startsWith 'http://127.0.0.1') for consistency.
+  // Register did-stop-loading BEFORE checking isLoading to avoid the race where the
+  // load event fires between the isLoading check and the once() call.
   await app.evaluate(
-    ({ webContents }, targetUrl) =>
+    ({ webContents }, _targetUrl) =>
       new Promise<void>((resolve) => {
         const all = webContents.getAllWebContents();
-        const tab = all.find((wc) => !wc.getURL().includes('index.html'));
+        const tab = all.find((wc) => wc.getURL().startsWith('http://127.0.0.1'));
         if (!tab) { resolve(); return; }
+        tab.once('did-stop-loading', resolve);
         if (!tab.isLoading()) { resolve(); return; }
-        tab.once('did-stop-loading', () => resolve());
       }),
     url,
   );
