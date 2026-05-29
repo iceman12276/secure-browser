@@ -6,6 +6,7 @@ mod kdf;
 mod storage;
 mod totp;
 mod vault;
+mod webauthn;
 
 use std::sync::Mutex;
 
