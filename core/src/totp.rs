@@ -1,3 +1,6 @@
+// Public API awaiting M4.4 napi wiring — dead_code is expected until then.
+#![allow(dead_code)]
+
 use totp_rs::{Algorithm, Secret, TOTP};
 
 use crate::error::{VaultError, VaultResult};

@@ -1,3 +1,6 @@
+// Public API awaiting M4.4 napi wiring — dead_code is expected until then.
+#![allow(dead_code)]
+
 use url::Url;
 use uuid::Uuid;
 use webauthn_rs::prelude::*;

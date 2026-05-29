@@ -171,7 +171,10 @@ pub fn delete_credential(conn: &Connection, id: &str) -> VaultResult<()> {
     Ok(())
 }
 
+// ── MFA stubs awaiting M4.4 napi wiring ──────────────────────────────────────
+
 /// Store (replace) the encrypted, unconfirmed TOTP secret.
+#[allow(dead_code)]
 pub fn put_totp(conn: &Connection, rec: &EncryptedRecord) -> VaultResult<()> {
     conn.execute(
         "INSERT INTO mfa_totp (id, kem_ct, kem_dk, aes_nonce, aes_ct, confirmed)
@@ -184,12 +187,14 @@ pub fn put_totp(conn: &Connection, rec: &EncryptedRecord) -> VaultResult<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn confirm_totp(conn: &Connection) -> VaultResult<()> {
     conn.execute("UPDATE mfa_totp SET confirmed = 1 WHERE id = 1", [])?;
     audit(conn, "mfa.totp.confirm", "")?;
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn totp_record(conn: &Connection) -> VaultResult<Option<(EncryptedRecord, bool)>> {
     let row = conn.query_row(
         "SELECT kem_ct, kem_dk, aes_nonce, aes_ct, confirmed FROM mfa_totp WHERE id = 1",
@@ -213,10 +218,12 @@ pub fn totp_record(conn: &Connection) -> VaultResult<Option<(EncryptedRecord, bo
     }
 }
 
+#[allow(dead_code)]
 pub fn totp_confirmed(conn: &Connection) -> VaultResult<bool> {
     Ok(matches!(totp_record(conn)?, Some((_, true))))
 }
 
+#[allow(dead_code)]
 pub fn put_passkey(conn: &Connection, id: &str, passkey_json: &str) -> VaultResult<()> {
     conn.execute(
         "INSERT OR REPLACE INTO webauthn_credentials (id, passkey, created_at) VALUES (?1, ?2, ?3)",
@@ -226,6 +233,7 @@ pub fn put_passkey(conn: &Connection, id: &str, passkey_json: &str) -> VaultResu
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn list_passkeys(conn: &Connection) -> VaultResult<Vec<String>> {
     let mut stmt = conn.prepare("SELECT passkey FROM webauthn_credentials")?;
     let rows = stmt
@@ -234,6 +242,7 @@ pub fn list_passkeys(conn: &Connection) -> VaultResult<Vec<String>> {
     Ok(rows)
 }
 
+#[allow(dead_code)]
 pub fn has_passkeys(conn: &Connection) -> VaultResult<bool> {
     let n: i64 = conn.query_row("SELECT count(*) FROM webauthn_credentials", [], |r| {
         r.get(0)
