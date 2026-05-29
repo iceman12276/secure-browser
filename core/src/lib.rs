@@ -4,6 +4,7 @@ mod crypto;
 mod error;
 mod kdf;
 mod storage;
+mod totp;
 mod vault;
 
 use std::sync::Mutex;

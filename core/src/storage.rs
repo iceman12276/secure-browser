@@ -49,6 +49,19 @@ pub fn init_schema(conn: &Connection) -> VaultResult<()> {
             ts     INTEGER NOT NULL,
             event  TEXT NOT NULL,
             detail TEXT NOT NULL DEFAULT ''
+         );
+         CREATE TABLE IF NOT EXISTS mfa_totp (
+             id         INTEGER PRIMARY KEY CHECK (id = 1),
+             kem_ct     BLOB NOT NULL,
+             kem_dk     BLOB NOT NULL,
+             aes_nonce  BLOB NOT NULL,
+             aes_ct     BLOB NOT NULL,
+             confirmed  INTEGER NOT NULL DEFAULT 0
+         );
+         CREATE TABLE IF NOT EXISTS webauthn_credentials (
+             id         TEXT PRIMARY KEY,
+             passkey    TEXT NOT NULL,
+             created_at INTEGER NOT NULL
          );",
     )?;
     Ok(())
@@ -156,6 +169,74 @@ pub fn delete_credential(conn: &Connection, id: &str) -> VaultResult<()> {
     }
     audit(conn, "credential.delete", id)?;
     Ok(())
+}
+
+/// Store (replace) the encrypted, unconfirmed TOTP secret.
+pub fn put_totp(conn: &Connection, rec: &EncryptedRecord) -> VaultResult<()> {
+    conn.execute(
+        "INSERT INTO mfa_totp (id, kem_ct, kem_dk, aes_nonce, aes_ct, confirmed)
+         VALUES (1, ?1, ?2, ?3, ?4, 0)
+         ON CONFLICT(id) DO UPDATE SET
+            kem_ct=?1, kem_dk=?2, aes_nonce=?3, aes_ct=?4, confirmed=0",
+        params![rec.kem_ct, rec.kem_dk, rec.aes_nonce, rec.aes_ct],
+    )?;
+    audit(conn, "mfa.totp.enroll", "")?;
+    Ok(())
+}
+
+pub fn confirm_totp(conn: &Connection) -> VaultResult<()> {
+    conn.execute("UPDATE mfa_totp SET confirmed = 1 WHERE id = 1", [])?;
+    audit(conn, "mfa.totp.confirm", "")?;
+    Ok(())
+}
+
+pub fn totp_record(conn: &Connection) -> VaultResult<Option<(EncryptedRecord, bool)>> {
+    let row = conn.query_row(
+        "SELECT kem_ct, kem_dk, aes_nonce, aes_ct, confirmed FROM mfa_totp WHERE id = 1",
+        [],
+        |r| {
+            Ok((
+                EncryptedRecord {
+                    kem_ct: r.get(0)?,
+                    kem_dk: r.get(1)?,
+                    aes_nonce: r.get(2)?,
+                    aes_ct: r.get(3)?,
+                },
+                r.get::<_, i64>(4)? != 0,
+            ))
+        },
+    );
+    match row {
+        Ok(v) => Ok(Some(v)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(VaultError::Storage(e)),
+    }
+}
+
+pub fn totp_confirmed(conn: &Connection) -> VaultResult<bool> {
+    Ok(matches!(totp_record(conn)?, Some((_, true))))
+}
+
+pub fn put_passkey(conn: &Connection, id: &str, passkey_json: &str) -> VaultResult<()> {
+    conn.execute(
+        "INSERT OR REPLACE INTO webauthn_credentials (id, passkey, created_at) VALUES (?1, ?2, ?3)",
+        params![id, passkey_json, now()],
+    )?;
+    audit(conn, "mfa.webauthn.register", id)?;
+    Ok(())
+}
+
+pub fn list_passkeys(conn: &Connection) -> VaultResult<Vec<String>> {
+    let mut stmt = conn.prepare("SELECT passkey FROM webauthn_credentials")?;
+    let rows = stmt
+        .query_map([], |r| r.get::<_, String>(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(rows)
+}
+
+pub fn has_passkeys(conn: &Connection) -> VaultResult<bool> {
+    let n: i64 = conn.query_row("SELECT count(*) FROM webauthn_credentials", [], |r| r.get(0))?;
+    Ok(n > 0)
 }
 
 fn now() -> i64 {
