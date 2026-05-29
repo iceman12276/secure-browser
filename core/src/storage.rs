@@ -235,7 +235,9 @@ pub fn list_passkeys(conn: &Connection) -> VaultResult<Vec<String>> {
 }
 
 pub fn has_passkeys(conn: &Connection) -> VaultResult<bool> {
-    let n: i64 = conn.query_row("SELECT count(*) FROM webauthn_credentials", [], |r| r.get(0))?;
+    let n: i64 = conn.query_row("SELECT count(*) FROM webauthn_credentials", [], |r| {
+        r.get(0)
+    })?;
     Ok(n > 0)
 }
 
