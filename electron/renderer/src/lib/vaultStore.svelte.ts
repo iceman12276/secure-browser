@@ -1,4 +1,5 @@
 import type { CredentialMeta } from '../env';
+import { registerSecurityKey, authenticateSecurityKey } from './webauthn';
 
 class VaultStore {
   initialized = $state(false);
@@ -7,6 +8,8 @@ class VaultStore {
   error = $state<string | null>(null);
   awaitingSecondFactor = $state(false);
   mfaEnrolled = $state(false);
+  totpEnrolled = $state(false);
+  hasPasskey = $state(false);
 
   async refreshStatus(): Promise<void> {
     const s = await window.secureBrowser.vault.status();
@@ -15,6 +18,8 @@ class VaultStore {
     const mfa = await window.secureBrowser.mfa.status();
     this.awaitingSecondFactor = mfa.awaitingSecondFactor;
     this.mfaEnrolled = mfa.enrolled;
+    this.totpEnrolled = mfa.totpEnrolled;
+    this.hasPasskey = mfa.hasPasskey;
     if (this.unlocked && !this.awaitingSecondFactor) await this.refreshList();
   }
 
@@ -78,6 +83,21 @@ class VaultStore {
   }
   confirmTotp(code: string): Promise<boolean> {
     return window.secureBrowser.mfa.confirmTotp(code);
+  }
+  /** Register a security key / passkey as a second factor (hardware ceremony). */
+  registerWebauthn(): Promise<void> {
+    return this.run(async () => {
+      await registerSecurityKey();
+      await this.refreshStatus();
+    });
+  }
+  /** Clear the awaiting-second-factor gate by asserting a registered security key. */
+  authenticateWebauthn(): Promise<void> {
+    return this.run(async () => {
+      const ok = await authenticateSecurityKey();
+      if (!ok) throw new Error('Security key was not accepted');
+      await this.refreshStatus();
+    });
   }
   initAutoLock(): void {
     window.secureBrowser.onAutoLock(() => {

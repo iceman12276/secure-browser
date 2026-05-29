@@ -39,7 +39,12 @@ export interface SecureBrowserApi {
   onTabEvent: (cb: (event: TabEvent) => void) => () => void;
   onSavePrompt: (cb: (p: SavePrompt) => void) => () => void;
   mfa: {
-    status: () => Promise<{ enrolled: boolean; awaitingSecondFactor: boolean }>;
+    status: () => Promise<{
+      enrolled: boolean;
+      awaitingSecondFactor: boolean;
+      totpEnrolled: boolean;
+      hasPasskey: boolean;
+    }>;
     enrollTotp: () => Promise<{ secretBase32: string; otpauthUrl: string; qrPngBase64: string }>;
     confirmTotp: (code: string) => Promise<boolean>;
     verifyTotp: (code: string) => Promise<boolean>;

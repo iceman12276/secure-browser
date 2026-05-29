@@ -28,6 +28,12 @@ export function createMainWindow(): MainWindow {
 
   if (process.env.ELECTRON_RENDERER_URL) {
     void chromeView.webContents.loadURL(process.env.ELECTRON_RENDERER_URL);
+    // Dev only (the renderer URL is set exclusively by `electron-vite dev`):
+    // open the chrome view's DevTools so the manual WebAuthn hardware ceremony's
+    // [webauthn] console trace and any errors are observable. The built app
+    // (production + e2e) takes the loadFile branch and is never affected.
+    // See tests/manual/webauthn-hardware-ceremony.md.
+    chromeView.webContents.openDevTools({ mode: 'detach' });
   } else {
     void chromeView.webContents.loadFile(join(__dirname, '../renderer/index.html'));
   }

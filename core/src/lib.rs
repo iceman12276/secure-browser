@@ -41,6 +41,10 @@ pub struct TotpEnrollmentDto {
 pub struct MfaStatus {
     pub enrolled: bool,
     pub awaiting_second_factor: bool,
+    /// Per-factor breakdown so the UI can show/gate TOTP vs security-key
+    /// affordances independently (`enrolled` is the OR of these two).
+    pub totp_enrolled: bool,
+    pub has_passkey: bool,
 }
 
 /// Challenge + opaque state pair for a WebAuthn ceremony.
@@ -158,6 +162,8 @@ impl Vault {
         MfaStatus {
             enrolled: s.mfa_enrolled(),
             awaiting_second_factor: s.awaiting_second_factor(),
+            totp_enrolled: s.totp_enrolled(),
+            has_passkey: s.has_passkey(),
         }
     }
 

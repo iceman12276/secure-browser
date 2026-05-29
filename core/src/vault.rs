@@ -80,6 +80,24 @@ impl VaultState {
         }
     }
 
+    /// True if a confirmed TOTP secret is enrolled. Reads the open connection
+    /// directly so it is also valid while awaiting the second factor.
+    pub fn totp_enrolled(&self) -> bool {
+        match self.conn.as_ref() {
+            Some(c) => totp_confirmed(c).unwrap_or(false),
+            None => false,
+        }
+    }
+
+    /// True if at least one passkey / security key is registered. Reads the open
+    /// connection directly so it is also valid while awaiting the second factor.
+    pub fn has_passkey(&self) -> bool {
+        match self.conn.as_ref() {
+            Some(c) => has_passkeys(c).unwrap_or(false),
+            None => false,
+        }
+    }
+
     /// Guard for credential ops: requires DB open AND second factor satisfied.
     fn conn(&self) -> VaultResult<&Connection> {
         if self.awaiting_second_factor {
