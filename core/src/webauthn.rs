@@ -27,8 +27,12 @@ pub fn build_rp() -> VaultResult<Webauthn> {
 pub fn start_registration() -> VaultResult<(String, String)> {
     let webauthn = build_rp()?;
     let user_id = Uuid::new_v4();
+    // SecurityKey (not Passkey) API: a second-factor security key is non-resident
+    // and user-presence (touch) only — UV (PIN/biometric) is optional. The Passkey
+    // API requires UV, which a touch-only key cannot satisfy ("user verified bit is
+    // not set, and required by policy"). attestation_ca_list=None accepts "none".
     let (ccr, state) = webauthn
-        .start_passkey_registration(user_id, "vault", "Vault Owner", None)
+        .start_securitykey_registration(user_id, "vault", "Vault Owner", None, None, None)
         .map_err(|e| VaultError::Crypto(format!("start reg: {e}")))?;
     Ok((to_json(&ccr)?, to_json(&state)?))
 }
@@ -38,11 +42,11 @@ pub fn start_registration() -> VaultResult<(String, String)> {
 pub fn finish_registration(response_json: &str, state_json: &str) -> VaultResult<String> {
     let webauthn = build_rp()?;
     let reg: RegisterPublicKeyCredential = from_json(response_json)?;
-    let state: PasskeyRegistration = from_json(state_json)?;
-    let passkey = webauthn
-        .finish_passkey_registration(&reg, &state)
+    let state: SecurityKeyRegistration = from_json(state_json)?;
+    let key = webauthn
+        .finish_securitykey_registration(&reg, &state)
         .map_err(|e| VaultError::Crypto(format!("finish reg: {e}")))?;
-    to_json(&passkey)
+    to_json(&key)
 }
 
 /// Start authentication against the stored passkeys (JSON list).
@@ -54,12 +58,12 @@ pub fn start_authentication(passkeys_json: &[String]) -> VaultResult<(String, St
         ));
     }
     let webauthn = build_rp()?;
-    let passkeys: Vec<Passkey> = passkeys_json
+    let keys: Vec<SecurityKey> = passkeys_json
         .iter()
-        .map(|s| from_json::<Passkey>(s))
+        .map(|s| from_json::<SecurityKey>(s))
         .collect::<VaultResult<Vec<_>>>()?;
     let (rcr, state) = webauthn
-        .start_passkey_authentication(&passkeys)
+        .start_securitykey_authentication(&keys)
         .map_err(|e| VaultError::Crypto(format!("start auth: {e}")))?;
     Ok((to_json(&rcr)?, to_json(&state)?))
 }
@@ -68,9 +72,9 @@ pub fn start_authentication(passkeys_json: &[String]) -> VaultResult<(String, St
 pub fn finish_authentication(response_json: &str, state_json: &str) -> VaultResult<bool> {
     let webauthn = build_rp()?;
     let cred: PublicKeyCredential = from_json(response_json)?;
-    let state: PasskeyAuthentication = from_json(state_json)?;
+    let state: SecurityKeyAuthentication = from_json(state_json)?;
     webauthn
-        .finish_passkey_authentication(&cred, &state)
+        .finish_securitykey_authentication(&cred, &state)
         .map(|_| true)
         .map_err(|e| VaultError::Crypto(format!("finish auth: {e}")))
 }
@@ -98,7 +102,7 @@ mod tests {
         assert!(challenge.contains("challenge"));
         assert!(challenge.contains("\"rp\""));
         // State must round-trip through JSON (persisted between start/finish).
-        let parsed: PasskeyRegistration = serde_json::from_str(&state).unwrap();
+        let parsed: SecurityKeyRegistration = serde_json::from_str(&state).unwrap();
         let reserialized = serde_json::to_string(&parsed).unwrap();
         assert!(!reserialized.is_empty());
     }
