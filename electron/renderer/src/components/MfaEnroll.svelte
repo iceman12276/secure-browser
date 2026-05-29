@@ -28,36 +28,36 @@
     }
   }
 
+  // The register/unlock WebAuthn browser ceremony lives in lib/webauthn.ts
+  // (driven via the vault store). It is hardware-dependent and validated
+  // manually (tests/manual/webauthn-hardware-ceremony.md), not in CI. Failures
+  // surface via the shared vault-error banner in VaultSidebar.
   async function registerKey() {
-    error = null;
-    try {
-      // Begin RP ceremony in Rust; perform navigator.credentials in the chrome page.
-      const { challengeJson, stateJson } = await window.secureBrowser.webauthn.startRegistration();
-      const options = JSON.parse(challengeJson);
-      // The challenge JSON uses base64url fields; a production build should decode
-      // them to ArrayBuffers before calling create(). This wiring is exercised
-      // manually with hardware (see plan M4.7 Step 5).
-      const cred = await navigator.credentials.create({ publicKey: options.publicKey ?? options });
-      await window.secureBrowser.webauthn.finishRegistration(JSON.stringify(cred), stateJson);
-      await vaultStore.refreshStatus();
-    } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
-    }
+    await vaultStore.registerWebauthn();
   }
 </script>
 
 <section class="mfa-enroll" data-testid="mfa-enroll">
   <h3>Two-factor authentication</h3>
-  {#if vaultStore.mfaEnrolled}
-    <p data-testid="mfa-enrolled">✅ A second factor is enrolled.</p>
-  {:else if !enrollment}
-    <button data-testid="totp-begin" onclick={begin}>Set up authenticator app</button>
-    <button data-testid="webauthn-register" onclick={registerKey}>Register security key / passkey</button>
-  {:else}
+  {#if enrollment}
     <img alt="TOTP QR" src={`data:image/png;base64,${enrollment.qrPngBase64}`} />
     <p><small>Secret: {enrollment.secretBase32}</small></p>
     <input data-testid="totp-confirm-code" bind:value={code} placeholder="Enter code to confirm" />
     <button data-testid="totp-confirm" onclick={confirm}>Confirm</button>
+    {#if error}<p class="error">{error}</p>{/if}
+  {:else}
+    <!-- Factors are composable: TOTP and any number of security keys can be added
+         independently. The register button must stay reachable even once a factor
+         exists (otherwise an existing vault could never add a key). -->
+    {#if vaultStore.mfaEnrolled}
+      <p data-testid="mfa-enrolled">✅ A second factor is enrolled.</p>
+    {/if}
+    {#if !vaultStore.totpEnrolled}
+      <button data-testid="totp-begin" onclick={begin}>Set up authenticator app</button>
+    {/if}
+    <button data-testid="webauthn-register" onclick={registerKey}>
+      {vaultStore.hasPasskey ? 'Register another security key / passkey' : 'Register security key / passkey'}
+    </button>
     {#if error}<p class="error">{error}</p>{/if}
   {/if}
 </section>

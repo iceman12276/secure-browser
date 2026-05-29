@@ -32,6 +32,12 @@ test('enroll TOTP on a freshly created vault', async () => {
   await chrome.getByTestId('master-pw').fill('master-pw');
   await chrome.getByTestId('vault-submit').click();
 
+  // Both enrollment affordances are offered on a fresh vault. The security-key
+  // button must be reachable here AND after a factor exists (it is no longer
+  // hidden once enrolled) — regression guard for the WebAuthn register entry point.
+  await expect(chrome.getByTestId('totp-begin')).toBeVisible();
+  await expect(chrome.getByTestId('webauthn-register')).toBeVisible();
+
   await chrome.getByTestId('totp-begin').click();
   // Read the enrollment secret from the <small> element inside mfa-enroll.
   // Targeting <small> avoids capturing surrounding button text that shares
@@ -43,6 +49,9 @@ test('enroll TOTP on a freshly created vault', async () => {
   await chrome.getByTestId('totp-confirm-code').fill(code);
   await chrome.getByTestId('totp-confirm').click();
   await expect(chrome.getByTestId('mfa-enrolled')).toBeVisible();
+  // Regression guard for the HIGH finding: the register button stays reachable
+  // after a factor is enrolled, so an existing vault can still add a security key.
+  await expect(chrome.getByTestId('webauthn-register')).toBeVisible();
 });
 
 test('relaunch requires master password AND TOTP', async () => {

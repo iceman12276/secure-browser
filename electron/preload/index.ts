@@ -51,8 +51,12 @@ const api = {
     return () => ipcRenderer.removeListener('autofill:save-prompt', listener);
   },
   mfa: {
-    status: (): Promise<{ enrolled: boolean; awaitingSecondFactor: boolean }> =>
-      ipcRenderer.invoke('mfa:status'),
+    status: (): Promise<{
+      enrolled: boolean;
+      awaitingSecondFactor: boolean;
+      totpEnrolled: boolean;
+      hasPasskey: boolean;
+    }> => ipcRenderer.invoke('mfa:status'),
     enrollTotp: (): Promise<{ secretBase32: string; otpauthUrl: string; qrPngBase64: string }> =>
       ipcRenderer.invoke('mfa:enrollTotp'),
     confirmTotp: (code: string): Promise<boolean> => ipcRenderer.invoke('mfa:confirmTotp', code),
