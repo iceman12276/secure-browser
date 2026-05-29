@@ -163,31 +163,40 @@ impl Vault {
 
     #[napi]
     pub fn enroll_totp(&self) -> napi::Result<TotpEnrollmentDto> {
-        let e = self.state.lock().unwrap().enroll_totp()?;
-        Ok(TotpEnrollmentDto {
-            secret_base32: e.secret_base32,
-            otpauth_url: e.otpauth_url,
-            qr_png_base64: e.qr_png_base64,
-        })
+        self.state
+            .lock()
+            .unwrap()
+            .enroll_totp()
+            .map(|e| TotpEnrollmentDto {
+                secret_base32: e.secret_base32,
+                otpauth_url: e.otpauth_url,
+                qr_png_base64: e.qr_png_base64,
+            })
+            .map_err(Into::into)
     }
 
     #[napi]
     pub fn confirm_totp(&self, code: String) -> napi::Result<bool> {
-        Ok(self.state.lock().unwrap().confirm_totp(&code)?)
+        self.state
+            .lock()
+            .unwrap()
+            .confirm_totp(&code)
+            .map_err(Into::into)
     }
 
     #[napi]
     pub fn verify_totp(&self, code: String) -> napi::Result<bool> {
-        Ok(self.state.lock().unwrap().verify_totp(&code)?)
+        self.state
+            .lock()
+            .unwrap()
+            .verify_totp(&code)
+            .map_err(Into::into)
     }
 
     #[napi]
     pub fn start_webauthn_registration(&self) -> napi::Result<WebauthnChallenge> {
-        let (challenge_json, state_json) = self
-            .state
-            .lock()
-            .unwrap()
-            .start_webauthn_registration()?;
+        let (challenge_json, state_json) =
+            self.state.lock().unwrap().start_webauthn_registration()?;
         Ok(WebauthnChallenge {
             challenge_json,
             state_json,
@@ -203,17 +212,14 @@ impl Vault {
         self.state
             .lock()
             .unwrap()
-            .finish_webauthn_registration(&response, &state)?;
-        Ok(())
+            .finish_webauthn_registration(&response, &state)
+            .map_err(Into::into)
     }
 
     #[napi]
     pub fn start_webauthn_authentication(&self) -> napi::Result<WebauthnChallenge> {
-        let (challenge_json, state_json) = self
-            .state
-            .lock()
-            .unwrap()
-            .start_webauthn_authentication()?;
+        let (challenge_json, state_json) =
+            self.state.lock().unwrap().start_webauthn_authentication()?;
         Ok(WebauthnChallenge {
             challenge_json,
             state_json,
@@ -226,10 +232,10 @@ impl Vault {
         response: String,
         state: String,
     ) -> napi::Result<bool> {
-        Ok(self
-            .state
+        self.state
             .lock()
             .unwrap()
-            .finish_webauthn_authentication(&response, &state)?)
+            .finish_webauthn_authentication(&response, &state)
+            .map_err(Into::into)
     }
 }
