@@ -11,7 +11,9 @@
   async function save() {
     if (!prompt) return;
     try {
-      await window.secureBrowser.vault.saveFromPrompt(prompt);
+      // Spread into a plain object — Svelte $state wraps reactive objects in a
+      // Proxy, which cannot be transferred via Electron's structured-clone IPC.
+      await window.secureBrowser.vault.saveFromPrompt({ ...prompt });
       await vaultStore.refreshList();
       prompt = null;
     } catch (e) {
