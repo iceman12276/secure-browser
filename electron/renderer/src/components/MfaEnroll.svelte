@@ -3,21 +3,28 @@
 
   let enrollment = $state<{ secretBase32: string; otpauthUrl: string; qrPngBase64: string } | null>(null);
   let code = $state('');
-  let confirmed = $state(false);
   let error = $state<string | null>(null);
 
   async function begin() {
-    enrollment = await vaultStore.enrollTotp();
+    error = null;
+    try {
+      enrollment = await vaultStore.enrollTotp();
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+    }
   }
   async function confirm() {
     error = null;
-    const ok = await vaultStore.confirmTotp(code);
-    if (ok) {
-      confirmed = true;
-      enrollment = null;
-      await vaultStore.refreshStatus();
-    } else {
-      error = 'Code did not match — try again';
+    try {
+      const ok = await vaultStore.confirmTotp(code);
+      if (ok) {
+        enrollment = null;
+        await vaultStore.refreshStatus();
+      } else {
+        error = 'Code did not match — try again';
+      }
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
     }
   }
 
@@ -53,7 +60,6 @@
     <button data-testid="totp-confirm" onclick={confirm}>Confirm</button>
     {#if error}<p class="error">{error}</p>{/if}
   {/if}
-  {#if confirmed}<p data-testid="totp-confirmed">Authenticator enrolled.</p>{/if}
 </section>
 
 <style>
