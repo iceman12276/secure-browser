@@ -1,6 +1,3 @@
-// Public API awaiting M4.4 napi wiring — dead_code is expected until then.
-#![allow(dead_code)]
-
 use totp_rs::{Algorithm, Secret, TOTP};
 
 use crate::error::{VaultError, VaultResult};
@@ -52,6 +49,7 @@ pub fn verify(secret_base32: &str, code: &str) -> VaultResult<bool> {
 }
 
 /// Verify against a specific unix timestamp (used for RFC vector tests).
+#[cfg(test)]
 pub fn verify_at(secret_base32: &str, code: &str, unix_secs: u64) -> VaultResult<bool> {
     let totp = build_totp(secret_base32)?;
     Ok(totp.check(code, unix_secs))
