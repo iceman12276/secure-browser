@@ -1,7 +1,7 @@
 import { ipcRenderer } from 'electron';
 import { detectForms } from './formParser';
 import { showOverlay, removeOverlay } from './overlay';
-import type { Candidate, CaptureRequest, DetectedForms, FillResult } from './messages';
+import type { Candidate, CaptureRequest, DetectedForms, FillRequest, FillResult } from './messages';
 
 // NOTE: this preload does NOT contextBridge any vault API into the page.
 // The page can only ever receive a single secret value written into one
@@ -42,7 +42,7 @@ function captureOnSubmit(usernameSel: string | null, passwordSel: string): void 
 }
 
 // Main pushes origin-matched candidate metadata (no secrets).
-ipcRenderer.on('autofill:candidates', (_e, candidates: Candidate[]) => {
+ipcRenderer.on('autofill:candidates', (_e: unknown, candidates: Candidate[]) => {
   if (!detected || candidates.length === 0) return;
   const first = detected.forms[0];
   const anchor =
@@ -52,8 +52,9 @@ ipcRenderer.on('autofill:candidates', (_e, candidates: Candidate[]) => {
 
   showOverlay(anchor, candidates, (credentialId) => {
     // User gesture → request the single plaintext release for this fill.
+    const req: FillRequest = { credentialId };
     ipcRenderer
-      .invoke('autofill:fill', { credentialId })
+      .invoke('autofill:fill', req)
       .then((res: FillResult) => fillForm(first.usernameSelector, first.passwordSelector, res))
       .catch((err: unknown) => {
         // Surface fill failures (origin mismatch, locked vault, no credential) — do not swallow silently.
