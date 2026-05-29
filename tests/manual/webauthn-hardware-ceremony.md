@@ -1,5 +1,20 @@
 # Manual test — WebAuthn security-key ceremony (hardware-dependent)
 
+> **Status (2026-05-29) — known Electron limitation, native fix in progress.**
+> A live run on Linux confirmed that this **browser** ceremony (`navigator.credentials`)
+> does **not** work on Linux or macOS: Electron does not ship Chromium's WebAuthn UI,
+> so the security-key prompt never appears and `create()/get()` hangs until timeout.
+> Tracked upstream as **[electron/electron#24573](https://github.com/electron/electron/issues/24573)**
+> (open, no planned fix). It works **only on Windows** (native OS WebAuthn API). The
+> wiring itself is verified correct — the trace reaches `create()` with valid options
+> and the JSON round-trips against the webauthn-rs structs.
+>
+> **Resolution:** a **native CTAP2/FIDO2 client in the Rust core** (driving the key
+> over USB HID directly, the way Firefox does) replaces this browser path and works
+> cross-platform with no Electron dependency — landing as its own PR. Until then the
+> browser path aborts after 20s with a clear message, and **TOTP** is the working,
+> cross-platform second factor.
+
 This runbook covers the **live FIDO2 / passkey ceremony** that cannot run in CI
 (it needs a physical authenticator and a real OS prompt). It implements plan
 **M4.7 Step 5**. Everything else about MFA — the Rust RP state machine,
