@@ -55,8 +55,7 @@ function findUsernameField(scope: Element, pw: HTMLInputElement): HTMLInputEleme
 }
 
 function isTextual(i: HTMLInputElement): boolean {
-  const t = (i.getAttribute('type') ?? 'text').toLowerCase();
-  return ['text', 'email', 'tel', ''].includes(t);
+  return ['text', 'email', 'tel'].includes(i.type);
 }
 
 function precedes(a: Element, b: Element): boolean {
