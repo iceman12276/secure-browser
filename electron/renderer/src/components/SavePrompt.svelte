@@ -7,9 +7,14 @@
 
   async function save() {
     if (!prompt) return;
-    await window.secureBrowser.vault.saveFromPrompt(prompt);
-    prompt = null;
-    await vaultStore.refreshList();
+    try {
+      await window.secureBrowser.vault.saveFromPrompt(prompt);
+      await vaultStore.refreshList();
+      prompt = null;
+    } catch (e) {
+      // Surface the failure — never silently swallow a credential-write error (capstone lesson).
+      vaultStore.error = e instanceof Error ? e.message : String(e);
+    }
   }
   function dismiss() {
     prompt = null;
