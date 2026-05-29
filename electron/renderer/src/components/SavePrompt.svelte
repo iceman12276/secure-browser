@@ -1,9 +1,12 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import { vaultStore } from '../lib/vaultStore.svelte';
+  import type { SavePrompt } from '../../../content/messages';
 
-  let prompt = $state<{ origin: string; username: string; secret: string } | null>(null);
+  let prompt = $state<SavePrompt | null>(null);
 
-  window.secureBrowser.onSavePrompt((p) => (prompt = p));
+  const unsubscribeSavePrompt = window.secureBrowser.onSavePrompt((p) => (prompt = p));
+  onDestroy(unsubscribeSavePrompt);
 
   async function save() {
     if (!prompt) return;

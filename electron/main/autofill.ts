@@ -68,9 +68,13 @@ export function registerAutofill(main: MainWindow): void {
   // chrome → main: user accepted the save prompt.
   ipcMain.handle('vault:saveFromPrompt', (_e, p: unknown) => {
     const prompt = p as SavePrompt;
-    if (typeof prompt?.origin !== 'string' || typeof prompt?.secret !== 'string') {
+    if (
+      typeof prompt?.origin !== 'string' ||
+      typeof prompt?.username !== 'string' ||
+      typeof prompt?.secret !== 'string'
+    ) {
       throw new Error('invalid save payload');
     }
-    return vault.addCredential(prompt.origin, prompt.username ?? '', prompt.secret, '');
+    return vault.addCredential(prompt.origin, prompt.username, prompt.secret, '');
   });
 }
