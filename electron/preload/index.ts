@@ -35,12 +35,20 @@ const api = {
       ipcRenderer.invoke('vault:add', origin, username, secret, label),
     getSecret: (id: string): Promise<string> => ipcRenderer.invoke('vault:getSecret', id),
     delete: (id: string): Promise<void> => ipcRenderer.invoke('vault:delete', id),
+    saveFromPrompt: (p: { origin: string; username: string; secret: string }): Promise<string> =>
+      ipcRenderer.invoke('vault:saveFromPrompt', p),
   },
   /** Subscribe to tab-state pushes. Returns an unsubscribe fn. */
   onTabEvent: (cb: (event: TabEvent) => void): (() => void) => {
     const listener = (_e: unknown, event: TabEvent): void => cb(event);
     ipcRenderer.on('tab:event', listener);
     return () => ipcRenderer.removeListener('tab:event', listener);
+  },
+  /** Subscribe to save-prompt pushes from main. Returns an unsubscribe fn. */
+  onSavePrompt: (cb: (p: { origin: string; username: string; secret: string }) => void): (() => void) => {
+    const listener = (_e: unknown, p: { origin: string; username: string; secret: string }): void => cb(p);
+    ipcRenderer.on('autofill:save-prompt', listener);
+    return () => ipcRenderer.removeListener('autofill:save-prompt', listener);
   },
 };
 

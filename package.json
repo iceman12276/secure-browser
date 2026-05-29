@@ -21,6 +21,7 @@
     "@sveltejs/vite-plugin-svelte": "^5",
     "electron": "^33",
     "electron-vite": "^5",
+    "jsdom": "^25",
     "svelte": "^5",
     "svelte-check": "^4",
     "typescript": "^5",

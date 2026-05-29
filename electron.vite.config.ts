@@ -18,7 +18,10 @@ export default defineConfig({
     build: {
       outDir: 'out/preload',
       rollupOptions: {
-        input: { index: resolve(__dirname, 'electron/preload/index.ts') },
+        input: {
+          index: resolve(__dirname, 'electron/preload/index.ts'),
+          autofill: resolve(__dirname, 'electron/content/autofill.ts'),
+        },
       },
     },
   },

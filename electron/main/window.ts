@@ -37,11 +37,10 @@ export function createMainWindow(): MainWindow {
     create(onUpdate) {
       const view = new WebContentsView({
         webPreferences: {
+          preload: join(__dirname, '../preload/autofill.js'), // autofill content-script preload (M3); sandboxed+contextIsolated, no vault API bridged to page
           sandbox: true,
           contextIsolation: true,
           nodeIntegration: false,
-          // No preload here in M1: arbitrary web pages get NO bridge.
-          // M3 introduces a dedicated autofill content-script preload.
         },
       });
       baseWindow.contentView.addChildView(view);

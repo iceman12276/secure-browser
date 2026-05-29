@@ -1,5 +1,6 @@
 /// <reference types="svelte" />
 import type { TabEvent, TabId } from '../../main/tabs/types';
+import type { SavePrompt } from '../../content/messages';
 
 export interface CredentialMeta {
   id: string;
@@ -33,8 +34,10 @@ export interface SecureBrowserApi {
     add: (origin: string, username: string, secret: string, label: string) => Promise<string>;
     getSecret: (id: string) => Promise<string>;
     delete: (id: string) => Promise<void>;
+    saveFromPrompt: (p: SavePrompt) => Promise<string>;
   };
   onTabEvent: (cb: (event: TabEvent) => void) => () => void;
+  onSavePrompt: (cb: (p: SavePrompt) => void) => () => void;
 }
 
 declare global {
