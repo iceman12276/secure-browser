@@ -20,15 +20,17 @@ function originOf(url: string): string | null {
 
 const credsForOrigin = (origin: string) => vault.list().filter((m) => m.origin === origin);
 
+// All three autofill handlers derive the authoritative origin from event.senderFrame
+// (the actual sending frame) rather than event.sender.getURL() (the top-frame URL).
+// This prevents a cross-origin iframe in the same WebContents from being authorized
+// with the parent page's origin. A dedicated e2e regression for the sub-frame path is
+// not feasible without weakening sandbox:true / nodeIntegrationInSubFrames (default
+// false), which would prevent the content-script preload from running in sub-frames;
+// the fix is therefore verified by code audit and the existing same-origin suite.
 export function registerAutofill(main: MainWindow): void {
   // content → main: forms detected. Reply with origin-matched metadata only.
   // Authorization is bound to event.senderFrame (the actual sending frame) to prevent
-  // sub-frame origin confusion: a cross-origin iframe in the same WebContents would
-  // otherwise be authorized with the top frame's URL via event.sender.getURL().
-  // Note: an e2e regression test for the sub-frame path is not feasible without
-  // weakening sandbox:true / nodeIntegrationInSubFrames (default false), which would
-  // prevent the content-script preload from running in sub-frames. The fix is verified
-  // by code audit and the existing same-origin suite.
+  // sub-frame origin confusion.
   ipcMain.on('autofill:detected', (event, payload: DetectedForms) => {
     if (!vault.isUnlocked()) return;
     // Derive origin from the SENDER FRAME, not the top-frame URL, to prevent
