@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron';
-import { coreVersion } from 'secure-browser-core';
+import { coreVersion, fido2Register, fido2Authenticate } from 'secure-browser-core';
 import { vault } from './vault';
 import type { MainWindow } from './window';
 import type { TabEvent } from './tabs/types';
@@ -133,6 +133,22 @@ export function registerIpc(main: MainWindow, autoLock: AutoLock): void {
     if (typeof response !== 'string' || typeof state !== 'string') throw new Error('response+state required');
     autoLock.touch();
     return vault.finishWebauthnAuthentication(response, state);
+  });
+
+  // Native FIDO2 ceremony: drive the USB key in the Rust core (CTAP2 over HID),
+  // bypassing the browser's navigator.credentials which Electron does not surface
+  // on Linux/macOS (electron#24573). Input is the RP challenge JSON from
+  // start*; output is the response JSON for finish*. These run the blocking
+  // ceremony off-thread in the core (napi async).
+  ipcMain.handle('webauthn:nativeRegister', (_e, challengeJson: unknown) => {
+    if (typeof challengeJson !== 'string') throw new Error('challenge required');
+    autoLock.touch();
+    return fido2Register(challengeJson);
+  });
+  ipcMain.handle('webauthn:nativeAuthenticate', (_e, challengeJson: unknown) => {
+    if (typeof challengeJson !== 'string') throw new Error('challenge required');
+    autoLock.touch();
+    return fido2Authenticate(challengeJson);
   });
 
   registerAutofill(main);

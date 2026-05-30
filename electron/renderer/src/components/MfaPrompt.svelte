@@ -1,5 +1,6 @@
 <script lang="ts">
   import { vaultStore } from '../lib/vaultStore.svelte';
+  import WebauthnBusy from './WebauthnBusy.svelte';
   let code = $state('');
 </script>
 
@@ -18,7 +19,7 @@
     <p class="divider">or</p>
   {/if}
 
-  <!-- Security-key unlock: drives navigator.credentials.get() via the vault store.
+  <!-- Security-key unlock: drives the native CTAP2 ceremony in the Rust core (USB HID) via the vault store.
        Hardware-dependent path, validated manually (tests/manual/webauthn-hardware-ceremony.md).
        Shown only when a passkey is registered, so TOTP-only users don't hit a
        "no passkeys registered" error. -->
@@ -27,9 +28,11 @@
       type="button"
       data-testid="webauthn-unlock"
       onclick={() => vaultStore.authenticateWebauthn()}
+      disabled={vaultStore.webauthnBusy}
     >
       Unlock with security key
     </button>
+    {#if vaultStore.webauthnBusy}<WebauthnBusy />{/if}
   {/if}
 </section>
 

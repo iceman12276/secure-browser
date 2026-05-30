@@ -10,6 +10,10 @@ class VaultStore {
   mfaEnrolled = $state(false);
   totpEnrolled = $state(false);
   hasPasskey = $state(false);
+  /** True while a native security-key ceremony is in flight (awaiting the user's touch). */
+  webauthnBusy = $state(false);
+  /** Transient success confirmation (e.g. after a security-key ceremony). */
+  notice = $state<string | null>(null);
 
   async refreshStatus(): Promise<void> {
     const s = await window.secureBrowser.vault.status();
@@ -35,6 +39,17 @@ class VaultStore {
       // Surface errors to the UI — never silently swallow (capstone lesson).
       this.error = e instanceof Error ? e.message : String(e);
     }
+  }
+
+  private noticeTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Show a transient success confirmation that auto-clears after a few seconds. */
+  private flash(message: string): void {
+    if (this.noticeTimer) clearTimeout(this.noticeTimer);
+    this.notice = message;
+    this.noticeTimer = setTimeout(() => {
+      this.notice = null;
+      this.noticeTimer = null;
+    }, 4000);
   }
 
   init(pw: string): Promise<void> {
@@ -84,19 +99,31 @@ class VaultStore {
   confirmTotp(code: string): Promise<boolean> {
     return window.secureBrowser.mfa.confirmTotp(code);
   }
-  /** Register a security key / passkey as a second factor (hardware ceremony). */
+  /** Register a security key / passkey as a second factor (native CTAP2 ceremony). */
   registerWebauthn(): Promise<void> {
     return this.run(async () => {
-      await registerSecurityKey();
-      await this.refreshStatus();
+      this.webauthnBusy = true;
+      try {
+        await registerSecurityKey();
+        await this.refreshStatus();
+        this.flash('Security key registered');
+      } finally {
+        this.webauthnBusy = false;
+      }
     });
   }
   /** Clear the awaiting-second-factor gate by asserting a registered security key. */
   authenticateWebauthn(): Promise<void> {
     return this.run(async () => {
-      const ok = await authenticateSecurityKey();
-      if (!ok) throw new Error('Security key was not accepted');
-      await this.refreshStatus();
+      this.webauthnBusy = true;
+      try {
+        const ok = await authenticateSecurityKey();
+        if (!ok) throw new Error('Security key was not accepted');
+        await this.refreshStatus();
+        this.flash('Unlocked with security key');
+      } finally {
+        this.webauthnBusy = false;
+      }
     });
   }
   initAutoLock(): void {

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { vaultStore } from '../lib/vaultStore.svelte';
+  import WebauthnBusy from './WebauthnBusy.svelte';
 
   let enrollment = $state<{ secretBase32: string; otpauthUrl: string; qrPngBase64: string } | null>(null);
   let code = $state('');
@@ -28,8 +29,8 @@
     }
   }
 
-  // The register/unlock WebAuthn browser ceremony lives in lib/webauthn.ts
-  // (driven via the vault store). It is hardware-dependent and validated
+  // The register/unlock security-key ceremony (native CTAP2 client in the core)
+  // lives in lib/webauthn.ts (driven via the vault store). It is hardware-dependent and validated
   // manually (tests/manual/webauthn-hardware-ceremony.md), not in CI. Failures
   // surface via the shared vault-error banner in VaultSidebar.
   async function registerKey() {
@@ -55,9 +56,10 @@
     {#if !vaultStore.totpEnrolled}
       <button data-testid="totp-begin" onclick={begin}>Set up authenticator app</button>
     {/if}
-    <button data-testid="webauthn-register" onclick={registerKey}>
+    <button data-testid="webauthn-register" onclick={registerKey} disabled={vaultStore.webauthnBusy}>
       {vaultStore.hasPasskey ? 'Register another security key / passkey' : 'Register security key / passkey'}
     </button>
+    {#if vaultStore.webauthnBusy}<WebauthnBusy />{/if}
     {#if error}<p class="error">{error}</p>{/if}
   {/if}
 </section>

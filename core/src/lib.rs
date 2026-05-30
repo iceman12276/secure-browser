@@ -2,6 +2,7 @@
 
 mod crypto;
 mod error;
+mod fido2;
 mod kdf;
 mod storage;
 mod totp;
@@ -17,6 +18,29 @@ use crate::vault::VaultState;
 #[napi]
 pub fn core_version() -> String {
     format!("secure-browser-core {}", env!("CARGO_PKG_VERSION"))
+}
+
+/// Drive a USB security key through CTAP2 makeCredential (native HID, no browser
+/// WebAuthn UI). Input: the RP's start-registration challenge JSON. Output: the
+/// `RegisterPublicKeyCredential` JSON to hand to `finishWebauthnRegistration`.
+/// Runs the blocking ceremony off the Node event loop.
+#[napi]
+pub async fn fido2_register(challenge_json: String) -> napi::Result<String> {
+    napi::tokio::task::spawn_blocking(move || fido2::native_make_credential(&challenge_json))
+        .await
+        .map_err(|e| napi::Error::from_reason(format!("fido2 join: {e}")))?
+        .map_err(|e| napi::Error::from_reason(e.to_string()))
+}
+
+/// Drive a USB security key through CTAP2 getAssertion (native HID). Input: the
+/// RP's start-authentication challenge JSON. Output: the `PublicKeyCredential`
+/// JSON to hand to `finishWebauthnAuthentication`.
+#[napi]
+pub async fn fido2_authenticate(challenge_json: String) -> napi::Result<String> {
+    napi::tokio::task::spawn_blocking(move || fido2::native_get_assertion(&challenge_json))
+        .await
+        .map_err(|e| napi::Error::from_reason(format!("fido2 join: {e}")))?
+        .map_err(|e| napi::Error::from_reason(e.to_string()))
 }
 
 /// Credential metadata exposed to JS — NEVER includes the secret.

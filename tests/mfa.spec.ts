@@ -64,6 +64,11 @@ test('relaunch requires master password AND TOTP', async () => {
   // Phase 2: TOTP prompt appears; the vault is NOT yet usable.
   await expect(chrome.getByTestId('mfa-prompt')).toBeVisible();
 
+  // Regression guard: this vault enrolled TOTP only (no passkey), so the
+  // security-key unlock button must NOT render — MfaPrompt gates it on hasPasskey,
+  // which keeps TOTP-only users away from the native "no credentials" path.
+  await expect(chrome.getByTestId('webauthn-unlock')).toHaveCount(0);
+
   // Wrong code stays locked.
   await chrome.getByTestId('totp-code').fill('000000');
   await chrome.getByTestId('totp-verify').click();

@@ -71,6 +71,11 @@ const api = {
       ipcRenderer.invoke('webauthn:startAuthentication'),
     finishAuthentication: (response: string, state: string): Promise<boolean> =>
       ipcRenderer.invoke('webauthn:finishAuthentication', response, state),
+    // Native CTAP2 ceremony in the core (USB HID), not the browser's WebAuthn.
+    nativeRegister: (challengeJson: string): Promise<string> =>
+      ipcRenderer.invoke('webauthn:nativeRegister', challengeJson),
+    nativeAuthenticate: (challengeJson: string): Promise<string> =>
+      ipcRenderer.invoke('webauthn:nativeAuthenticate', challengeJson),
   },
   onAutoLock: (cb: () => void): (() => void) => {
     const listener = (): void => cb();

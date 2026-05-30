@@ -8,7 +8,7 @@ license = "MIT"
 crate-type = ["cdylib"]
 
 [dependencies]
-napi = { version = "2", default-features = false, features = ["napi4"] }
+napi = { version = "2", default-features = false, features = ["napi4", "tokio_rt"] }
 napi-derive = "2"
 argon2 = "0.5"
 aes-gcm = "0.10"
@@ -26,6 +26,17 @@ totp-rs = { version = "5", features = ["otpauth", "qr", "gen_secret"] }
 webauthn-rs = { version = "0.5", features = ["danger-allow-state-serialisation"] }
 uuid = { version = "1", features = ["v4"] }
 url = "2"
+# Native FIDO2/CTAP2 *client* (drives a USB security key over HID directly,
+# bypassing Electron's missing WebAuthn UI — electron/electron#24573). Mozilla's
+# crate (ships in Firefox): native per-OS HID, progress channel for touch/PIN.
+# crypto_rust = pure-Rust backend (p256/aes/hmac) — avoids the default NSS
+# build dep (which git-clones + builds Mozilla NSS). Only system dep is libudev.
+authenticator = { version = "0.5", default-features = false, features = ["crypto_rust"] }
+# RUSTSEC-2021-0127: serde_cbor is unmaintained. Accepted — it is the exact CBOR
+# crate the `authenticator` crate itself depends on (already transitively in the
+# tree), and we only SERIALIZE a struct we already hold (the attestation object),
+# never deserialize untrusted input.
+serde_cbor = "0.11"
 
 [build-dependencies]
 napi-build = "2"
