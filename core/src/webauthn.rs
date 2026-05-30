@@ -5,21 +5,16 @@ use webauthn_rs::prelude::*;
 use crate::error::{VaultError, VaultResult};
 
 /// Build the Relying Party. rp_id must be an effective domain of rp_origin.
-/// For the Electron dev build the chrome view is served over http://localhost.
-///
-/// `allow_any_port(true)`: electron-vite serves the chrome renderer at
-/// `http://localhost:<port>` (a port that varies per run), so the assertion's
-/// origin would otherwise fail the exact-match check against `http://localhost`.
-/// Skipping the port check is safe here because the WebAuthn ceremony is only
-/// ever invoked from the trusted chrome renderer over IPC — sandboxed tab pages
-/// cannot reach the vault API (the trust boundary), so no untrusted origin can
-/// drive this RP regardless of port.
+/// The native CTAP2 client (`fido2.rs`) builds clientDataJSON itself and always
+/// reports the fixed, port-less origin `http://localhost`, so exact origin
+/// matching suffices — no `allow_any_port` relaxation is needed. The RP is only
+/// ever driven from the trusted chrome renderer over IPC, never from a page.
 pub fn build_rp() -> VaultResult<Webauthn> {
     let rp_id = "localhost";
     let rp_origin = Url::parse("http://localhost")
         .map_err(|e| VaultError::Crypto(format!("rp origin: {e}")))?;
     WebauthnBuilder::new(rp_id, &rp_origin)
-        .and_then(|b| b.rp_name("Secure Browser").allow_any_port(true).build())
+        .and_then(|b| b.rp_name("Secure Browser").build())
         .map_err(|e| VaultError::Crypto(format!("webauthn build: {e}")))
 }
 

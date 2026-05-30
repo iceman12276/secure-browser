@@ -32,6 +32,10 @@ url = "2"
 # crypto_rust = pure-Rust backend (p256/aes/hmac) — avoids the default NSS
 # build dep (which git-clones + builds Mozilla NSS). Only system dep is libudev.
 authenticator = { version = "0.5", default-features = false, features = ["crypto_rust"] }
+# RUSTSEC-2021-0127: serde_cbor is unmaintained. Accepted — it is the exact CBOR
+# crate the `authenticator` crate itself depends on (already transitively in the
+# tree), and we only SERIALIZE a struct we already hold (the attestation object),
+# never deserialize untrusted input.
 serde_cbor = "0.11"
 
 [build-dependencies]

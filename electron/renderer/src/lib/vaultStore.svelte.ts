@@ -41,11 +41,14 @@ class VaultStore {
     }
   }
 
+  private noticeTimer: ReturnType<typeof setTimeout> | null = null;
   /** Show a transient success confirmation that auto-clears after a few seconds. */
   private flash(message: string): void {
+    if (this.noticeTimer) clearTimeout(this.noticeTimer);
     this.notice = message;
-    setTimeout(() => {
-      if (this.notice === message) this.notice = null;
+    this.noticeTimer = setTimeout(() => {
+      this.notice = null;
+      this.noticeTimer = null;
     }, 4000);
   }
 

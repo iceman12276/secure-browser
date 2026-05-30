@@ -29,8 +29,8 @@
     }
   }
 
-  // The register/unlock WebAuthn browser ceremony lives in lib/webauthn.ts
-  // (driven via the vault store). It is hardware-dependent and validated
+  // The register/unlock security-key ceremony (native CTAP2 client in the core)
+  // lives in lib/webauthn.ts (driven via the vault store). It is hardware-dependent and validated
   // manually (tests/manual/webauthn-hardware-ceremony.md), not in CI. Failures
   // surface via the shared vault-error banner in VaultSidebar.
   async function registerKey() {

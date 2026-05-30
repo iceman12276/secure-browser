@@ -19,7 +19,7 @@
     <p class="divider">or</p>
   {/if}
 
-  <!-- Security-key unlock: drives navigator.credentials.get() via the vault store.
+  <!-- Security-key unlock: drives the native CTAP2 ceremony in the Rust core (USB HID) via the vault store.
        Hardware-dependent path, validated manually (tests/manual/webauthn-hardware-ceremony.md).
        Shown only when a passkey is registered, so TOTP-only users don't hit a
        "no passkeys registered" error. -->
