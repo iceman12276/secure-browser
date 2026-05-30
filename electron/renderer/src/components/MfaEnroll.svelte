@@ -1,5 +1,6 @@
 <script lang="ts">
   import { vaultStore } from '../lib/vaultStore.svelte';
+  import WebauthnBusy from './WebauthnBusy.svelte';
 
   let enrollment = $state<{ secretBase32: string; otpauthUrl: string; qrPngBase64: string } | null>(null);
   let code = $state('');
@@ -58,7 +59,7 @@
     <button data-testid="webauthn-register" onclick={registerKey} disabled={vaultStore.webauthnBusy}>
       {vaultStore.hasPasskey ? 'Register another security key / passkey' : 'Register security key / passkey'}
     </button>
-    {#if vaultStore.webauthnBusy}<p class="hint" data-testid="webauthn-busy">👆 Touch your security key…</p>{/if}
+    {#if vaultStore.webauthnBusy}<WebauthnBusy />{/if}
     {#if error}<p class="error">{error}</p>{/if}
   {/if}
 </section>
@@ -66,6 +67,5 @@
 <style>
   .mfa-enroll { border-top: 1px solid #444; margin-top: 12px; padding-top: 12px; }
   .error { color: #f28b82; }
-  .hint { color: #8ab4f8; }
   img { width: 160px; height: 160px; }
 </style>

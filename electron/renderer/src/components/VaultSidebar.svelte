@@ -45,6 +45,11 @@
   {#if vaultStore.error}
     <p class="error" data-testid="vault-error">{vaultStore.error}</p>
   {/if}
+  {#if vaultStore.notice}
+    <p class="notice" data-testid="vault-notice" role="status" aria-live="polite">
+      <span class="check" aria-hidden="true">✓</span>{vaultStore.notice}
+    </p>
+  {/if}
 
   {#if vaultStore.awaitingSecondFactor}
     <MfaPrompt />
@@ -108,6 +113,26 @@
 
   .error {
     color: var(--danger); font-size: 13px; margin: 0 0 8px;
+  }
+
+  .notice {
+    color: #81c995; font-size: 13px; margin: 0 0 8px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .notice .check {
+    flex: none;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: #81c995; color: #0b1220; font-weight: 700; font-size: 13px;
+    animation: notice-pop 0.45s cubic-bezier(0.2, 1.5, 0.45, 1) both;
+  }
+  @keyframes notice-pop {
+    0% { transform: scale(0); opacity: 0; }
+    60% { transform: scale(1.15); opacity: 1; }
+    100% { transform: scale(1); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .notice .check { animation: none; }
   }
 
   input {

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { vaultStore } from '../lib/vaultStore.svelte';
+  import WebauthnBusy from './WebauthnBusy.svelte';
   let code = $state('');
 </script>
 
@@ -31,11 +32,10 @@
     >
       Unlock with security key
     </button>
-    {#if vaultStore.webauthnBusy}<p class="hint" data-testid="webauthn-busy">👆 Touch your security key…</p>{/if}
+    {#if vaultStore.webauthnBusy}<WebauthnBusy />{/if}
   {/if}
 </section>
 
 <style>
   .divider { color: #888; margin: 8px 0; text-align: center; }
-  .hint { color: #8ab4f8; }
 </style>

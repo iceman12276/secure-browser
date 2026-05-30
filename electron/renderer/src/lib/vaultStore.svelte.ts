@@ -12,6 +12,8 @@ class VaultStore {
   hasPasskey = $state(false);
   /** True while a native security-key ceremony is in flight (awaiting the user's touch). */
   webauthnBusy = $state(false);
+  /** Transient success confirmation (e.g. after a security-key ceremony). */
+  notice = $state<string | null>(null);
 
   async refreshStatus(): Promise<void> {
     const s = await window.secureBrowser.vault.status();
@@ -37,6 +39,14 @@ class VaultStore {
       // Surface errors to the UI — never silently swallow (capstone lesson).
       this.error = e instanceof Error ? e.message : String(e);
     }
+  }
+
+  /** Show a transient success confirmation that auto-clears after a few seconds. */
+  private flash(message: string): void {
+    this.notice = message;
+    setTimeout(() => {
+      if (this.notice === message) this.notice = null;
+    }, 4000);
   }
 
   init(pw: string): Promise<void> {
@@ -93,6 +103,7 @@ class VaultStore {
       try {
         await registerSecurityKey();
         await this.refreshStatus();
+        this.flash('Security key registered');
       } finally {
         this.webauthnBusy = false;
       }
@@ -106,6 +117,7 @@ class VaultStore {
         const ok = await authenticateSecurityKey();
         if (!ok) throw new Error('Security key was not accepted');
         await this.refreshStatus();
+        this.flash('Unlocked with security key');
       } finally {
         this.webauthnBusy = false;
       }
