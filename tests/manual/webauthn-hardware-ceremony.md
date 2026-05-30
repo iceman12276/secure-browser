@@ -1,146 +1,105 @@
-# Manual test — WebAuthn security-key ceremony (hardware-dependent)
+# Manual test — security-key (FIDO2) ceremony
 
-> **Status (2026-05-29) — known Electron limitation, native fix in progress.**
-> A live run on Linux confirmed that this **browser** ceremony (`navigator.credentials`)
-> does **not** work on Linux or macOS: Electron does not ship Chromium's WebAuthn UI,
-> so the security-key prompt never appears and `create()/get()` hangs until timeout.
-> Tracked upstream as **[electron/electron#24573](https://github.com/electron/electron/issues/24573)**
-> (open, no planned fix). It works **only on Windows** (native OS WebAuthn API). The
-> wiring itself is verified correct — the trace reaches `create()` with valid options
-> and the JSON round-trips against the webauthn-rs structs.
->
-> **Resolution:** a **native CTAP2/FIDO2 client in the Rust core** (driving the key
-> over USB HID directly, the way Firefox does) replaces this browser path and works
-> cross-platform with no Electron dependency — landing as its own PR. Until then the
-> browser path aborts after 20s with a clear message, and **TOTP** is the working,
-> cross-platform second factor.
+This runbook covers the **live security-key ceremony** that cannot run in CI (it
+needs a physical authenticator and a human touch). Everything else about MFA —
+the webauthn-rs Relying Party state machine, challenge generation, JSON
+serialization, and the master-password + TOTP unlock — is covered by automated
+tests (`core/src/webauthn.rs`, `tests/mfa.spec.ts`).
 
-This runbook covers the **live FIDO2 / passkey ceremony** that cannot run in CI
-(it needs a physical authenticator and a real OS prompt). It implements plan
-**M4.7 Step 5**. Everything else about MFA — the Rust RP state machine,
-challenge generation, JSON serialization, and the master-password + TOTP unlock —
-is already covered by automated tests (`core/src/webauthn.rs`, `tests/mfa.spec.ts`).
+## How it works (and why it's native)
 
-## What this validates
+The ceremony runs as a **native CTAP2/FIDO2 client in the Rust core**
+(`core/src/fido2.rs`, using Mozilla's `authenticator` crate — the engine Firefox
+ships), talking to the USB key **directly over HID**. It does **not** use the
+browser's `navigator.credentials`: Electron does not surface a WebAuthn UI on
+Linux or macOS (upstream [electron/electron#24573](https://github.com/electron/electron/issues/24573)),
+so the browser path hangs there. Driving the key natively works **cross-platform**
+(Linux/macOS/Windows) with no Electron dependency, and keeps the security-critical
+code in the audited Rust core. The native client produces the exact WebAuthn
+response JSON our existing RP consumes (`finish_registration`/`finish_authentication`).
 
-1. **Registration** — enrolling a security key / passkey as a second factor.
-2. **Unlock** — clearing the awaiting-second-factor gate by asserting that key.
+**Validated on Linux** (YubiKey 5, 2026-05-29): register + master-password +
+security-key unlock all succeed; a full unlock takes ~1.7s, most of which is the
+physical touch.
 
-## Why it's manual (scope)
+## About the touch (presence, not fingerprint)
 
-- WebAuthn binds the ceremony to the renderer's **origin**. `electron-vite dev`
-  serves the chrome view over `http://localhost:<port>`, which is a valid
-  WebAuthn origin; the RP (`build_rp()` in `core/src/webauthn.rs`) is configured
-  for `rp_id = "localhost"` with `allow_any_port(true)` so the dev port matches.
-- A **production** build loads the renderer from `file://`, which is **not** a
-  valid WebAuthn origin. So this ceremony is exercised on a **dev build only**.
-  Making WebAuthn unlock work in a packaged build (custom secure scheme or a
-  loopback HTTP server) is out of scope here and tracked separately.
-- The browser round-trip uses Chromium's native WebAuthn JSON APIs
-  (`PublicKeyCredential.parseCreationOptionsFromJSON` / `parseRequestOptionsFromJSON`
-  and `credential.toJSON()`), available in Electron 42's Chromium — so no manual
-  base64url↔ArrayBuffer conversion is needed (`electron/renderer/src/lib/webauthn.ts`).
+A standard **YubiKey 5-series** gold contact is a **capacitive presence sensor**,
+not a fingerprint reader — **any finger works**, and it cannot reject the "wrong"
+finger. It satisfies WebAuthn **user presence (UP)**, not user verification (UV).
+(Only the **YubiKey Bio** series has a fingerprint sensor.) The security here is
+*possession of the physical key* + *a live human touch*, gated behind the master
+password — not biometric identity. Accordingly the RP uses webauthn-rs's
+**SecurityKey** API (UV-optional), not the Passkey API (which requires UV and
+rejects a touch-only key).
 
 ## Prerequisites
 
-- A roaming **FIDO2 USB security key** (e.g. YubiKey) plugged into this machine.
-  - Alternative: a phone passkey via cross-device **hybrid/QR** (needs Bluetooth +
-    a recent Chromium); choose "Use a phone or tablet" at the OS prompt.
-- A dev build (the steps below). Do **not** use a packaged/production build.
+- A **FIDO2 USB security key** (e.g. YubiKey 5). Touch-only/UP is fine; v1 does
+  not drive a client PIN (a key that *requires* a PIN aborts with an error).
+- **Linux build dep:** `libudev-dev` + `pkg-config` (for the native client;
+  already in the CI jobs). **Runtime:** non-root HID access via udev `uaccess`
+  (the `libu2f-udev` rules) — usually already present; verify the key's
+  `/dev/hidraw*` node grants your user `rw` (replug the key if you just added rules).
+- macOS/Windows need no extra setup.
 
 ## Setup
 
 ```bash
-# from the repo root
-npm run build:core   # build the napi core (Rust)
+npm run build:core   # builds the napi core (needs libudev-dev on Linux)
 npm run dev          # electron-vite dev — serves the chrome view over http://localhost:<port>
 ```
 
-On launch (dev only) the chrome view's **DevTools** opens detached. Keep it
-visible — the ceremony logs a `[webauthn]` trace to its Console, and that trace
-plus the in-app red error banner (`data-testid="vault-error"`) are your
-diagnostics. Nothing secret is logged (challenges are public nonces; no master
-password or vault secret is touched).
-
 ## Part A — Register a security key
 
-1. If the vault doesn't exist yet, create it: enter a master password and submit.
-   If it exists, unlock it (master password, then TOTP if you've enrolled one).
+1. Create the vault (master password → Create), or unlock an existing one.
 2. In the vault sidebar, under **Two-factor authentication**, click
    **Register security key / passkey** (`data-testid="webauthn-register"`).
-3. Complete the OS / authenticator prompt:
-   - USB key: touch the key when it blinks (enter PIN if your key has one).
-   - Phone hybrid: scan the QR and approve on the phone.
-4. **Expected:** the sidebar shows **✅ A second factor is enrolled.**
-   (`data-testid="mfa-enrolled"`), and the DevTools Console shows:
-   ```
-   [webauthn] registration: received creation challenge from RP
-   [webauthn] registration: authenticator produced a credential, finishing with RP
-   [webauthn] registration: complete
-   ```
-5. If a red error banner appears instead, record its exact text and the full
-   `[webauthn]` trace (see Troubleshooting).
+3. A spinner appears ("Waiting for your security key… touch it when it blinks").
+   **Touch the key** (any finger, flat and firm on the gold contact).
+4. **Expected:** a green **✓ "Security key registered"** flash, and
+   **✅ A second factor is enrolled.** (`data-testid="mfa-enrolled"`).
 
 ## Part B — Unlock with the security key
 
-1. Lock the vault: click **Lock**, or wait ~5 minutes for idle auto-lock.
-2. Unlock with the **master password**. Because a second factor is enrolled, the
-   vault enters the **awaiting-second-factor** state and shows the second-factor
-   prompt (`data-testid="mfa-prompt"`) — credential operations stay locked. The
-   prompt shows only the factors you enrolled: the TOTP field appears if a TOTP
-   secret is set, and the **Unlock with security key** button appears if a passkey
-   is registered. On a passkey-only vault you'll see just the button.
-3. Click **Unlock with security key** (`data-testid="webauthn-unlock"`).
-4. Complete the OS / authenticator prompt (touch the key / approve on phone).
-5. **Expected:** the gate clears, the credential list becomes visible/usable, and
-   the Console shows:
-   ```
-   [webauthn] authentication: received request challenge from RP
-   [webauthn] authentication: authenticator produced an assertion, verifying with RP
-   [webauthn] authentication: RP verdict = true
-   ```
-   (You can still fall back to the TOTP code field if you enrolled TOTP too.)
+1. Click **Lock**, then unlock with the **master password**. Because a second
+   factor is enrolled, the vault enters the awaiting-second-factor state and shows
+   the prompt (`data-testid="mfa-prompt"`). The prompt shows only the factors you
+   enrolled — the **Unlock with security key** button appears when a key is registered.
+2. Click **Unlock with security key** (`data-testid="webauthn-unlock"`) → spinner
+   → **touch the key**.
+3. **Expected:** a green **✓ "Unlocked with security key"** flash and the vault
+   opens (credential list + Lock button visible). A full unlock is ~1–2s.
 
-## Results — fill in and paste into the PR description
+## Results — fill in and paste into the PR
 
 | Step | Authenticator | Result (PASS/FAIL) | Notes |
 |------|---------------|--------------------|-------|
 | A. Register | YubiKey (USB) | | |
 | B. Unlock   | YubiKey (USB) | | |
-| A. Register | Phone (hybrid) | | (optional) |
-| B. Unlock   | Phone (hybrid) | | (optional) |
 
-- OS / Chromium build:
+- OS / key model:
 - Date:
 
 ## Troubleshooting
 
-- **Red error banner with an `origin` / `Configuration` message** — the RP
-  rejected the assertion origin. `allow_any_port(true)` should make any
-  `http://localhost:<port>` valid; if it still fails, capture the exact dev URL
-  (DevTools → top of Console / Network) and the error text.
-- **`no passkeys registered; cannot start authentication`** — you clicked
-  *Unlock with security key* before registering one (Part A), or registration
-  didn't persist. Re-run Part A and confirm the `mfa-enrolled` indicator.
-- **A `DataError` / `SyntaxError` from `parseCreationOptionsFromJSON` or a
-  deserialization error from the RP on finish** — a JSON shape mismatch between
-  webauthn-rs and the browser. Capture: the full `[webauthn]` trace, the thrown
-  error text, and (DevTools → Console) `JSON.parse(...)` of the challenge if
-  visible. This is the one residual risk of the "verify once" approach and is a
-  one-line fix in `electron/renderer/src/lib/webauthn.ts` once the exact field is
-  known.
-- **No OS prompt appears** — ensure the key is seated and that the dev window has
-  focus; some Linux setups need `udev` rules for FIDO2 devices (e.g. the
-  `libfido2`/Yubico udev rules) for Chromium to see the key. Note: on launch a
-  **detached DevTools window opens (dev only)** and on some Linux window managers
-  it can steal focus, which prevents Chromium from anchoring the WebAuthn OS
-  prompt to the app window (the prompt may not appear, or appear behind). If no
-  prompt shows, click the **main app window** to focus it, then trigger the
-  ceremony again.
+- **No prompt window appears** — that's expected: there is no browser dialog. The
+  **key itself blinks**; just touch it. The in-app spinner is your cue.
+- **Touch doesn't seem to register** — press **flat and firmly** so your finger
+  fully covers the gold contact (it's presence, not fingerprint — see above). A
+  glancing/edge touch may not trigger the capacitive sensor.
+- **Red error banner** — read the text. `no credentials to authenticate` means no
+  key is registered (do Part A first). A PIN-required message means the key
+  demands a client PIN, which v1 does not yet drive (see Non-goals).
+- **Permission denied / no device** — the key's `/dev/hidraw*` node isn't
+  user-accessible; ensure the `libu2f-udev` rules are installed and **replug** the
+  key so the `uaccess` ACL attaches.
 
-## If you need to capture deeper detail
+## Non-goals (v1)
 
-In `electron/renderer/src/lib/webauthn.ts` the helpers already log a `[webauthn]`
-trace. To dump the raw challenge/response JSON for a failing run, temporarily add
-`console.log('[webauthn] challenge', challengeJson)` /
-`console.log('[webauthn] response', responseJson)` and re-run — then remove it.
+- **Non-resident credential, attestation "none", user-presence only** (UV
+  discouraged). Interactive **client-PIN** entry and a live "touch now" progress
+  event are planned enhancements; v1 shows a static spinner and aborts if a PIN is
+  required.
+- Multiple keys / credential dedup (stable per-vault user handle + `excludeCredentials`)
+  is future work.

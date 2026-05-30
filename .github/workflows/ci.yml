@@ -30,6 +30,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install system deps (libudev for native FIDO2/HID client)
+        run: sudo apt-get update && sudo apt-get install -y libudev-dev pkg-config
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -64,6 +67,9 @@ jobs:
           node-version: '22'
 
       - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system deps (libudev for native FIDO2/HID client)
+        run: sudo apt-get update && sudo apt-get install -y libudev-dev pkg-config
 
       - name: Install dependencies
         run: npm install
@@ -128,6 +134,9 @@ jobs:
           node-version: '22'
 
       - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system deps (libudev for native FIDO2/HID client)
+        run: sudo apt-get update && sudo apt-get install -y libudev-dev pkg-config
 
       - name: Install dependencies
         run: npm install
