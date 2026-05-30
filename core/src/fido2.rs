@@ -15,6 +15,7 @@
 //! so callers must run it off the main thread (the napi layer uses spawn_blocking).
 
 use std::sync::mpsc::{channel, RecvError};
+use std::sync::{Mutex, OnceLock};
 use std::thread;
 
 use authenticator::{
@@ -112,11 +113,22 @@ fn cose_alg(alg: i64) -> Option<COSEAlgorithm> {
     }
 }
 
-fn new_manager() -> VaultResult<AuthenticatorService> {
+/// One shared authenticator service, created once and reused across ceremonies.
+/// Recreating it per call re-enumerates the USB HID devices AND races the prior
+/// ceremony's not-yet-released device handle — the main source of unlock latency.
+/// Keeping it warm makes repeated unlocks fast. The Mutex serializes ceremonies
+/// (only one register/sign runs at a time, which is the only valid usage anyway).
+fn service() -> VaultResult<&'static Mutex<AuthenticatorService>> {
+    static SERVICE: OnceLock<Mutex<AuthenticatorService>> = OnceLock::new();
+    if let Some(s) = SERVICE.get() {
+        return Ok(s);
+    }
     let mut mgr = AuthenticatorService::new()
         .map_err(|e| VaultError::Crypto(format!("authenticator init: {e:?}")))?;
     mgr.add_u2f_usb_hid_platform_transports();
-    Ok(mgr)
+    // First writer wins; if we lost an init race our mgr is dropped here.
+    let _ = SERVICE.set(Mutex::new(mgr));
+    Ok(SERVICE.get().expect("service initialized"))
 }
 
 /// Drain CTAP2 status updates on a side thread. v1: we only need touch
@@ -183,7 +195,10 @@ pub fn native_make_credential(ccr_json: &str) -> VaultResult<String> {
         use_ctap1_fallback: false,
     };
 
-    let mut mgr = new_manager()?;
+    let mgr_mutex = service()?;
+    let mut mgr = mgr_mutex
+        .lock()
+        .map_err(|_| VaultError::Crypto("authenticator service lock poisoned".into()))?;
     let (status_tx, status_rx) = channel::<StatusUpdate>();
     let drain = spawn_status_drain(status_rx);
 
@@ -196,9 +211,12 @@ pub fn native_make_credential(ccr_json: &str) -> VaultResult<String> {
     let result = reg_rx
         .recv()
         .map_err(|e| VaultError::Crypto(format!("register recv: {e}")))?;
+    // Stop the ceremony now that we have the result, so the state machine does
+    // not run until TIMEOUT_MS (which would block drain.join() for ~60s).
+    let _ = mgr.cancel();
     let _ = drain.join();
-    let reg =
-        result.map_err(|e| VaultError::Crypto(format!("security key registration failed: {e:?}")))?;
+    let reg = result
+        .map_err(|e| VaultError::Crypto(format!("security key registration failed: {e:?}")))?;
 
     let att_obj =
         serde_cbor::to_vec(&reg.att_obj).map_err(|e| json_err("attestationObject cbor", e))?;
@@ -259,7 +277,10 @@ pub fn native_get_assertion(rcr_json: &str) -> VaultResult<String> {
         use_ctap1_fallback: false,
     };
 
-    let mut mgr = new_manager()?;
+    let mgr_mutex = service()?;
+    let mut mgr = mgr_mutex
+        .lock()
+        .map_err(|_| VaultError::Crypto("authenticator service lock poisoned".into()))?;
     let (status_tx, status_rx) = channel::<StatusUpdate>();
     let drain = spawn_status_drain(status_rx);
 
@@ -272,6 +293,10 @@ pub fn native_get_assertion(rcr_json: &str) -> VaultResult<String> {
     let result = sign_rx
         .recv()
         .map_err(|e| VaultError::Crypto(format!("sign recv: {e}")))?;
+    // Stop the ceremony now that we have the result, so the state machine does not
+    // run until TIMEOUT_MS — which would hold the status channel open and block
+    // drain.join() for the full timeout (~60s after a ~2s touch).
+    let _ = mgr.cancel();
     let _ = drain.join();
     let gar = result
         .map_err(|e| VaultError::Crypto(format!("security key authentication failed: {e:?}")))?;
