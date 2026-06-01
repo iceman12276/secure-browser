@@ -8,9 +8,9 @@ export function isChromeUrl(url: string): boolean {
   return url.includes('index.html') || url.includes('localhost') || url.includes('127.0.0.1');
 }
 
-// A default https://example.com tab opens on launch, so there are >=2 pages
-// immediately and app.firstWindow() races (it may return the tab view, whose
-// title is "Example Domain"). Select the chrome page deterministically by URL.
+// A default https://duckduckgo.com home tab opens on launch, so there are >=2
+// pages immediately and app.firstWindow() races (it may return the tab view).
+// Select the chrome page deterministically by URL.
 export async function getChromePage(app: ElectronApplication): Promise<Page> {
   for (let i = 0; i < 100; i++) {
     for (const w of app.windows()) {

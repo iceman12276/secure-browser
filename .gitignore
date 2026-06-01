@@ -30,6 +30,7 @@ playwright-report/
 tests/ux/results.json
 tests/ux/screenshots/NET-*.png
 tests/ux/screenshots/OMNI-*.png
+tests/ux/screenshots/HOME-*.png
 
 # Visual companion scratch (superpowers brainstorming)
 .superpowers/
