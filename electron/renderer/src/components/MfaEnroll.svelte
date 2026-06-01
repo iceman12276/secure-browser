@@ -56,7 +56,7 @@
     {#if !vaultStore.totpEnrolled}
       <button data-testid="totp-begin" onclick={begin}>Set up authenticator app</button>
     {/if}
-    <button data-testid="webauthn-register" onclick={registerKey} disabled={vaultStore.webauthnBusy}>
+    <button class="secondary" data-testid="webauthn-register" onclick={registerKey} disabled={vaultStore.webauthnBusy}>
       {vaultStore.hasPasskey ? 'Register another security key / passkey' : 'Register security key / passkey'}
     </button>
     {#if vaultStore.webauthnBusy}<WebauthnBusy />{/if}
@@ -65,7 +65,42 @@
 </section>
 
 <style>
-  .mfa-enroll { border-top: 1px solid #444; margin-top: 12px; padding-top: 12px; }
-  .error { color: #f28b82; }
-  img { width: 160px; height: 160px; }
+  /* Scoped to this component (Svelte) — mirror VaultSidebar's Aurora control
+     styling so the enroll inputs/buttons match the rest of the sidebar instead
+     of falling back to unstyled UA defaults. */
+  .mfa-enroll { border-top: 1px solid var(--border); margin-top: 12px; padding-top: 12px; }
+  h3 { margin: 0 0 10px; color: var(--text); font-size: 14px; font-weight: 600; }
+  p { color: var(--text); font-size: 13px; margin: 8px 0; }
+  small { color: var(--text-dim); word-break: break-all; }
+  .error { color: var(--danger); font-size: 13px; }
+  img { width: 160px; height: 160px; border-radius: 8px; display: block; background: #fff; padding: 6px; box-sizing: border-box; }
+
+  input {
+    width: 100%; box-sizing: border-box; margin: 8px 0; padding: 8px 10px;
+    background: var(--chrome-hi); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    outline: none; font: inherit;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  input::placeholder { color: var(--text-faint); }
+  input:focus { border-color: var(--accent-ring); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+  button {
+    display: block; margin: 8px 0 0;
+    background: var(--accent); color: #0b1220; border: none; border-radius: 8px;
+    padding: 8px 12px; font-weight: 600; cursor: pointer; font: inherit;
+    transition: filter .12s, color .12s;
+  }
+  button:hover { filter: brightness(1.08); }
+  button:disabled { opacity: .55; cursor: default; filter: none; }
+
+  .secondary {
+    background: var(--chrome-hi); color: var(--text-dim);
+    border: 1px solid var(--border); font-weight: 400;
+  }
+  .secondary:hover { filter: none; color: var(--text); }
+
+  button:focus-visible, input:focus-visible {
+    outline: 2px solid var(--accent-ring); outline-offset: 2px;
+  }
 </style>

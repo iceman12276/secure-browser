@@ -26,6 +26,7 @@
   {#if vaultStore.hasPasskey}
     <button
       type="button"
+      class="secondary"
       data-testid="webauthn-unlock"
       onclick={() => vaultStore.authenticateWebauthn()}
       disabled={vaultStore.webauthnBusy}
@@ -37,5 +38,39 @@
 </section>
 
 <style>
-  .divider { color: #888; margin: 8px 0; text-align: center; }
+  /* Scoped to this component (Svelte) — the second-factor gate is seen on every
+     unlock, so its controls must match the Aurora sidebar, not fall back to
+     unstyled UA defaults. Mirrors VaultSidebar's input/button treatment. */
+  h2 { margin: 0 0 10px; color: var(--text); font-size: 15px; font-weight: 600; }
+  p { color: var(--text-dim); font-size: 13px; margin: 0 0 6px; }
+  .divider { color: var(--text-faint); margin: 10px 0; text-align: center; }
+
+  input {
+    width: 100%; box-sizing: border-box; margin: 8px 0; padding: 8px 10px;
+    background: var(--chrome-hi); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    outline: none; font: inherit;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  input::placeholder { color: var(--text-faint); }
+  input:focus { border-color: var(--accent-ring); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+  button {
+    display: block; margin: 8px 0 0;
+    background: var(--accent); color: #0b1220; border: none; border-radius: 8px;
+    padding: 8px 12px; font-weight: 600; cursor: pointer; font: inherit;
+    transition: filter .12s, color .12s;
+  }
+  button:hover { filter: brightness(1.08); }
+  button:disabled { opacity: .55; cursor: default; filter: none; }
+
+  .secondary {
+    background: var(--chrome-hi); color: var(--text-dim);
+    border: 1px solid var(--border); font-weight: 400;
+  }
+  .secondary:hover { filter: none; color: var(--text); }
+
+  button:focus-visible, input:focus-visible {
+    outline: 2px solid var(--accent-ring); outline-offset: 2px;
+  }
 </style>
