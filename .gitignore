@@ -29,6 +29,7 @@ playwright-report/
 # curated step screenshots (01-15) are the durable record; these regenerate each run.
 tests/ux/results.json
 tests/ux/screenshots/NET-*.png
+tests/ux/screenshots/OMNI-*.png
 
 # Visual companion scratch (superpowers brainstorming)
 .superpowers/

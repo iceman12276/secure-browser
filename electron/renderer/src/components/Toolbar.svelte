@@ -1,5 +1,6 @@
 <script lang="ts">
   import { browser } from '../lib/browserStore.svelte';
+  import { resolveOmnibox } from '../lib/omnibox';
 
   let addressInput = $state('');
   let focused = $state(false);
@@ -13,9 +14,8 @@
 
   function submit(e: Event) {
     e.preventDefault();
-    let url = addressInput.trim();
-    if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
-    browser.go(url);
+    const url = resolveOmnibox(addressInput);
+    if (url) browser.go(url);
   }
 </script>
 
