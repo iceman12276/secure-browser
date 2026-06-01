@@ -1,3 +1,7 @@
+# template-exception: vendor workflow from anthropics/claude-code-action, not
+# derived from the project ci-template (~/.claude/references/ci-template.yml,
+# which governs ci.yml). This change only elevates the GITHUB_TOKEN scopes
+# (pull-requests/issues -> write) so the review posts onto the PR.
 name: Claude Code Review
 
 on:
@@ -21,8 +25,13 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
-      issues: read
+      # write so the action can post its review back onto the PR (comment +
+      # inline comments). An explicit block elevates above the repo's read-only
+      # default. This grants commenting, NOT PR approval (the repo's
+      # "Actions can approve PRs" toggle stays off), so review findings appear
+      # on the PR but a human still approves.
+      pull-requests: write
+      issues: write
       id-token: write
 
     steps:
