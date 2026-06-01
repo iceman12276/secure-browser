@@ -81,12 +81,19 @@ export function registerAutofill(main: MainWindow): void {
     if (!senderOrigin || senderOrigin !== req.origin) return;
 
     const existing = credsForOrigin(senderOrigin);
-    const match = existing.find((m) => m.username === req.username);
+    // De-duplicate ONLY on a real (non-empty) username; an empty username is
+    // "unknown", so distinct password-only logins never collapse onto one row.
+    const match = req.username ? existing.find((m) => m.username === req.username) : undefined;
     const isNew = !match;
     const isChanged = match ? vault.getSecret(match.id) !== req.secret : false;
     if (!isNew && !isChanged) return;
 
-    const prompt: SavePrompt = { origin: senderOrigin, username: req.username, secret: req.secret };
+    const prompt: SavePrompt = {
+      origin: senderOrigin,
+      username: req.username,
+      secret: req.secret,
+      update: !isNew, // overwriting an existing entry vs saving a new one
+    };
     main.chromeView.webContents.send('autofill:save-prompt', prompt);
   });
 
@@ -99,6 +106,16 @@ export function registerAutofill(main: MainWindow): void {
       typeof prompt?.secret !== 'string'
     ) {
       throw new Error('invalid save payload');
+    }
+    // Update an existing entry (same origin + non-empty username) in place rather
+    // than inserting a duplicate; otherwise add it as new. An empty username is
+    // treated as new so distinct password-only logins are never collapsed.
+    const match = prompt.username
+      ? vault.getCredentials(prompt.origin).find((m) => m.username === prompt.username)
+      : undefined;
+    if (match) {
+      vault.updateCredential(match.id, prompt.secret);
+      return match.id;
     }
     return vault.addCredential(prompt.origin, prompt.username, prompt.secret, '');
   });

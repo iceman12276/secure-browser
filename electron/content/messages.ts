@@ -36,6 +36,8 @@ export interface SavePrompt {
   origin: string;
   username: string;
   secret: string;
+  /** True when accepting would overwrite an existing (origin, username) entry. */
+  update?: boolean;
 }
 
 /** main → content: origin-matched candidate metadata (NO secret). */

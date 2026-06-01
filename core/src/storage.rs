@@ -171,6 +171,27 @@ pub fn delete_credential(conn: &Connection, id: &str) -> VaultResult<()> {
     Ok(())
 }
 
+/// Replace the encrypted secret of an existing credential in place (atomic
+/// UPDATE), preserving its id and created_at and bumping updated_at.
+pub fn update_credential_secret(
+    conn: &Connection,
+    id: &str,
+    rec: &EncryptedRecord,
+) -> VaultResult<()> {
+    let ts = now();
+    let n = conn.execute(
+        "UPDATE credentials
+            SET kem_ct = ?2, kem_dk = ?3, aes_nonce = ?4, aes_ct = ?5, updated_at = ?6
+         WHERE id = ?1",
+        params![id, rec.kem_ct, rec.kem_dk, rec.aes_nonce, rec.aes_ct, ts],
+    )?;
+    if n == 0 {
+        return Err(VaultError::NotFound(id.to_string()));
+    }
+    audit(conn, "credential.update", id)?;
+    Ok(())
+}
+
 // ── MFA ───────────────────────────────────────────────────────────────────────
 
 /// Store (replace) the encrypted, unconfirmed TOTP secret.

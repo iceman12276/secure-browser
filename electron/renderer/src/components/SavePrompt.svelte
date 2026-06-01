@@ -28,7 +28,11 @@
 
 {#if prompt}
   <div class="save-prompt" data-testid="save-prompt">
-    <span>Save this password for <strong>{prompt.username || prompt.origin}</strong> to your vault?</span>
+    {#if prompt.update}
+      <span>Update the saved password for <strong>{prompt.username || prompt.origin}</strong>?</span>
+    {:else}
+      <span>Save this password for <strong>{prompt.username || prompt.origin}</strong> to your vault?</span>
+    {/if}
     <button data-testid="save-accept" onclick={save}>Save</button>
     <button class="secondary" data-testid="save-dismiss" onclick={dismiss}>Not now</button>
   </div>
