@@ -24,7 +24,7 @@
   <button class="nav" data-testid="nav-forward" disabled={!browser.active?.canGoForward} onclick={() => browser.forward()} aria-label="Forward">→</button>
   <button class="nav" data-testid="nav-reload" onclick={() => browser.reload()} aria-label="Reload">⟳</button>
   <form onsubmit={submit}>
-    <input data-testid="address-bar" bind:value={addressInput} onfocus={() => (focused = true)} onblur={() => (focused = false)} placeholder="Search Citadel or enter address" spellcheck="false" />
+    <input data-testid="address-bar" bind:value={addressInput} onfocus={() => (focused = true)} onblur={() => (focused = false)} placeholder="Search the web or type an address" spellcheck="false" />
   </form>
 </div>
 
@@ -49,6 +49,6 @@
     background: var(--chrome-hi); color: var(--text); font-size: 13px;
     font-family: inherit; outline: none; transition: border-color .15s, box-shadow .15s;
   }
-  input::placeholder { color: var(--text-faint); }
+  input::placeholder { color: var(--text-dim); }
   input:focus { border-color: var(--accent-ring); box-shadow: 0 0 0 3px var(--accent-soft); }
 </style>

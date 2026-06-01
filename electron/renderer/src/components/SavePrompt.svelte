@@ -28,7 +28,7 @@
 
 {#if prompt}
   <div class="save-prompt" data-testid="save-prompt">
-    <span>Save password for <strong>{prompt.username || prompt.origin}</strong>?</span>
+    <span>Save this password for <strong>{prompt.username || prompt.origin}</strong> to your vault?</span>
     <button data-testid="save-accept" onclick={save}>Save</button>
     <button class="secondary" data-testid="save-dismiss" onclick={dismiss}>Not now</button>
   </div>
@@ -55,7 +55,7 @@
 
   button {
     background: var(--accent);
-    color: #0b1220;
+    color: var(--bg);
     border: none;
     border-radius: 8px;
     padding: 6px 12px;

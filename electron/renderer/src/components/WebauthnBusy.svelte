@@ -16,18 +16,18 @@
     gap: 10px;
     margin-top: 10px;
     padding: 8px 10px;
-    border: 1px solid #3a4a63;
+    border: 1px solid var(--border-strong);
     border-radius: 6px;
-    background: #1c2433;
-    color: #8ab4f8;
+    background: var(--panel-hi);
+    color: var(--accent);
     font-size: 0.9em;
   }
   .spinner {
     flex: none;
     width: 16px;
     height: 16px;
-    border: 2px solid #3a4a63;
-    border-top-color: #8ab4f8;
+    border: 2px solid var(--border-strong);
+    border-top-color: var(--accent);
     border-radius: 50%;
     animation: wa-spin 0.8s linear infinite;
   }
@@ -41,8 +41,8 @@
   @media (prefers-reduced-motion: reduce) {
     .spinner {
       animation: none;
-      border-top-color: #8ab4f8;
-      border-color: #8ab4f8;
+      border-top-color: var(--accent);
+      border-color: var(--accent);
     }
   }
 </style>

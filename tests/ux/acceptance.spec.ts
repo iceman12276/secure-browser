@@ -192,12 +192,12 @@ test('first-timer UX acceptance journey', async () => {
     r.notes.push('QR renders as an inline PNG (not a broken image / CSP-blocked) — scannable by a phone authenticator.');
     await shotChrome(r, '03-totp-qr.png');
 
-    totpSecret = (await chrome.locator('[data-testid="mfa-enroll"] small').textContent())!.replace('Secret:', '').trim();
+    totpSecret = (await chrome.getByTestId('totp-secret').textContent())!.trim();
     await chrome.getByTestId('totp-confirm-code').fill(generateSync({ secret: totpSecret }));
     await chrome.getByTestId('totp-confirm').click();
     await expect(chrome.getByTestId('mfa-enrolled')).toBeVisible();
     await expect(chrome.getByTestId('mfa-enrolled')).toContainText('enrolled');
-    r.notes.push('After confirming, an explicit "✅ A second factor is enrolled." confirmation appears.');
+    r.notes.push('After confirming, an explicit "Two-factor is enrolled." confirmation appears.');
     await shotChrome(r, '04-mfa-enrolled.png');
   });
 
@@ -213,7 +213,7 @@ test('first-timer UX acceptance journey', async () => {
     // Secret must be masked until an explicit Reveal — no plaintext on screen.
     await expect(chrome.getByTestId('cred-secret')).toHaveCount(0);
     await expect(chrome.getByTestId('cred-reveal')).toBeVisible();
-    r.notes.push('Stored credential lists label + username only; the password is hidden behind a "Reveal" button.');
+    r.notes.push('Stored credential lists label + username only; the password is hidden behind a "Show password" button.');
     await shotChrome(r, '05-credential-added.png');
   });
 
@@ -221,7 +221,7 @@ test('first-timer UX acceptance journey', async () => {
   await step('05-reveal', 'Password revealed only on explicit user action', async (r) => {
     await chrome.getByTestId('cred-reveal').click();
     await expect(chrome.getByTestId('cred-secret')).toHaveText('s3cret!');
-    r.notes.push('Plaintext appears only after clicking Reveal — never proactively.');
+    r.notes.push('Plaintext appears only after clicking Show password, never proactively.');
     await shotChrome(r, '06-revealed.png');
   });
 
@@ -317,7 +317,7 @@ test('first-timer UX acceptance journey', async () => {
     await shotChrome(r, '13-save-prompt.png');
     await chrome.getByTestId('save-accept').click();
     await expect(chrome.getByTestId('cred-item')).toHaveCount(2);
-    r.notes.push('A new login triggers a clear "Save password for …?" prompt with Save / Not now; accepting adds it to the vault (count 1→2).');
+    r.notes.push('A new login triggers a clear "Save this password for …?" prompt with Save / Not now; accepting adds it to the vault (count 1→2).');
   });
 
   // ── 13. Trust boundary: the tab page CANNOT see the vault API or Node ──

@@ -5,14 +5,19 @@
 </script>
 
 <section data-testid="mfa-prompt">
-  <h2>Second factor</h2>
+  <h2>One more step</h2>
+  <p class="intro">To finish unlocking, confirm it's you.</p>
 
   {#if vaultStore.totpEnrolled}
     <form onsubmit={(e) => { e.preventDefault(); vaultStore.verifyTotp(code); }}>
-      <p>Enter your authenticator code</p>
+      <p>Enter the 6-digit code from your authenticator app</p>
       <input data-testid="totp-code" inputmode="numeric" bind:value={code} placeholder="123456" />
-      <button data-testid="totp-verify">Verify</button>
+      <button data-testid="totp-verify">Unlock vault</button>
     </form>
+  {/if}
+
+  {#if vaultStore.error}
+    <p class="error" data-testid="vault-error">{vaultStore.error}</p>
   {/if}
 
   {#if vaultStore.totpEnrolled && vaultStore.hasPasskey}
@@ -31,7 +36,7 @@
       onclick={() => vaultStore.authenticateWebauthn()}
       disabled={vaultStore.webauthnBusy}
     >
-      Unlock with security key
+      Unlock with a security key
     </button>
     {#if vaultStore.webauthnBusy}<WebauthnBusy />{/if}
   {/if}
@@ -41,9 +46,11 @@
   /* Scoped to this component (Svelte) — the second-factor gate is seen on every
      unlock, so its controls must match the Aurora sidebar, not fall back to
      unstyled UA defaults. Mirrors VaultSidebar's input/button treatment. */
-  h2 { margin: 0 0 10px; color: var(--text); font-size: 15px; font-weight: 600; }
+  h2 { margin: 0 0 4px; color: var(--text); font-size: 15px; font-weight: 600; }
+  .intro { color: var(--text-dim); font-size: 12.5px; line-height: 1.45; margin: 0 0 12px; }
   p { color: var(--text-dim); font-size: 13px; margin: 0 0 6px; }
-  .divider { color: var(--text-faint); margin: 10px 0; text-align: center; }
+  .divider { color: var(--text-dim); margin: 10px 0; text-align: center; }
+  .error { color: var(--danger); font-size: 13px; margin: 8px 0 0; }
 
   input {
     width: 100%; box-sizing: border-box; margin: 8px 0; padding: 8px 10px;
@@ -52,12 +59,12 @@
     outline: none; font: inherit;
     transition: border-color .15s, box-shadow .15s;
   }
-  input::placeholder { color: var(--text-faint); }
+  input::placeholder { color: var(--text-dim); }
   input:focus { border-color: var(--accent-ring); box-shadow: 0 0 0 3px var(--accent-soft); }
 
   button {
     display: block; margin: 8px 0 0;
-    background: var(--accent); color: #0b1220; border: none; border-radius: 8px;
+    background: var(--accent); color: var(--bg); border: none; border-radius: 8px;
     padding: 8px 12px; font-weight: 600; cursor: pointer; font: inherit;
     transition: filter .12s, color .12s;
   }

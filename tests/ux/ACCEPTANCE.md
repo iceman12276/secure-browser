@@ -120,3 +120,25 @@ captures `NET-1`/`NET-2` show the real, fully-rendered live pages.)
   code inspection; it is not driven live here (a 5-minute idle wait per run isn't worth it).
 - **`connectivity.spec.ts` requires outbound network** (it loads real public sites). The
   rest of the suite is fully self-contained (local fixtures only).
+
+## Follow-up: impeccable design pass
+
+After the acceptance pass, the renderer was run through `/impeccable audit` then a
+warmth/clarity pass (onboarding + plain copy + WCAG AA + gentle motion), and verified by
+a 5-dimension adversarial review (brand-fit, a11y with computed contrast, anti-patterns,
+regression+security, copy). The screenshots above reflect this post-pass UI.
+
+What changed: first-run reassurance ("encrypted and stays on this device"), a teaching
+empty state, plain-words 2FA copy ("authenticator app", "setup key", "One more step"),
+the "Citadel" name removed from the address bar, a styled success check (no OS emoji),
+a de-bounced success animation (ease-out, no overshoot), tokenized colors, a
+visually-hidden `<h1>` landmark, a ≥24px tab-close target, and the second-factor error
+moved inline (so the calm heading leads, not a red banner).
+
+Adversarial review caught two real WCAG AA contrast misses (`.reassure-note` and the
+`or` divider at 3.76:1) that green tests and my own eyeballing missed; both were raised to
+`--text-dim` (≈6:1) and re-verified. Audit health moved from **16/20** to **~19/20**
+(remaining: a pre-existing nested-interactive role on the tab element, and nav glyphs vs
+inline SVG — both tracked as out-of-scope follow-ups). Save-on-submit (the Chrome-style
+"offer to save") is covered for account creation by `signup-save.spec.ts` and was also
+verified live against a real public site (the-internet.herokuapp.com).
