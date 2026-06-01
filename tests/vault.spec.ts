@@ -17,8 +17,8 @@ async function launch(): Promise<void> {
     args: ['.', `--user-data-dir=${userDataDir}`],
     cwd: join(__dirname, '..'),
   });
-  // A default https://example.com tab opens on launch, so there are >=2 pages
-  // and app.firstWindow() races. Select the chrome UI page deterministically.
+  // A default https://duckduckgo.com home tab opens on launch, so there are >=2
+  // pages and app.firstWindow() races. Select the chrome UI page deterministically.
   chrome = await getChromePage(app);
   await chrome.getByTestId('vault-sidebar').waitFor();
 }

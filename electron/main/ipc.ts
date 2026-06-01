@@ -5,6 +5,7 @@ import type { MainWindow } from './window';
 import type { TabEvent } from './tabs/types';
 import { registerAutofill } from './autofill';
 import type { AutoLock } from './autolock';
+import { HOME_URL } from './constants';
 
 function isHttpUrl(value: unknown): value is string {
   if (typeof value !== 'string') return false;
@@ -33,7 +34,7 @@ export function registerIpc(main: MainWindow, autoLock: AutoLock): void {
   // on bad/absent input), whereas nav:go is strict (throws on a bad url). Keep
   // this asymmetry — do not "fix" one to match the other.
   ipcMain.handle('tab:new', (_e, url: unknown) => {
-    const target = isHttpUrl(url) ? url : 'https://example.com';
+    const target = isHttpUrl(url) ? url : HOME_URL;
     const id = tabManager.newTab(target);
     relayout();
     return id;

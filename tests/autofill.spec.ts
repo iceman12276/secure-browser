@@ -72,7 +72,7 @@ test.beforeAll(async () => {
   });
   // Capture the chrome Page ONCE before navigating any tab to a 127.0.0.1 fixture.
   // Safe because at launch the only 127.0.0.1-matching window is renderer/index.html
-  // (the default tab opens example.com, not a fixture URL).
+  // (the default tab opens duckduckgo.com, not a fixture URL).
   // Do NOT call getChromePage again after fixture nav: isChromeUrl also matches
   // 127.0.0.1, so a later call could return a tab page instead of the chrome UI.
   chrome = await getChromePage(app);
