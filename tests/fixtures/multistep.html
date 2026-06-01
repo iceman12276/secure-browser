@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="UTF-8" /><title>Sign in</title></head>
+  <body>
+    <h1>Sign in</h1>
+    <!-- Google-style two-step sign-in: enter the email first, then on "Next"
+         the password field is INJECTED into the DOM (no full navigation), like
+         a single-page app. The password form is not present at load. -->
+    <div id="step1">
+      <input id="email" type="email" name="email" placeholder="Email" />
+      <button id="next" type="button">Next</button>
+    </div>
+    <div id="step2"></div>
+    <script>
+      document.getElementById('next').addEventListener('click', function () {
+        document.getElementById('step1').style.display = 'none';
+        // Inject the password step dynamically, AFTER page load.
+        document.getElementById('step2').innerHTML =
+          '<form id="pwForm">' +
+          '<input id="pw" type="password" name="password" placeholder="Password" />' +
+          '<button type="submit">Sign in</button>' +
+          '</form>';
+      });
+    </script>
+  </body>
+</html>

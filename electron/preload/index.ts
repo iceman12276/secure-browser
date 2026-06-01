@@ -35,7 +35,7 @@ const api = {
       ipcRenderer.invoke('vault:add', origin, username, secret, label),
     getSecret: (id: string): Promise<string> => ipcRenderer.invoke('vault:getSecret', id),
     delete: (id: string): Promise<void> => ipcRenderer.invoke('vault:delete', id),
-    saveFromPrompt: (p: { origin: string; username: string; secret: string }): Promise<string> =>
+    saveFromPrompt: (p: { origin: string; username: string; secret: string; update?: boolean }): Promise<string> =>
       ipcRenderer.invoke('vault:saveFromPrompt', p),
   },
   /** Subscribe to tab-state pushes. Returns an unsubscribe fn. */
@@ -45,8 +45,8 @@ const api = {
     return () => ipcRenderer.removeListener('tab:event', listener);
   },
   /** Subscribe to save-prompt pushes from main. Returns an unsubscribe fn. */
-  onSavePrompt: (cb: (p: { origin: string; username: string; secret: string }) => void): (() => void) => {
-    const listener = (_e: unknown, p: { origin: string; username: string; secret: string }): void => cb(p);
+  onSavePrompt: (cb: (p: { origin: string; username: string; secret: string; update?: boolean }) => void): (() => void) => {
+    const listener = (_e: unknown, p: { origin: string; username: string; secret: string; update?: boolean }): void => cb(p);
     ipcRenderer.on('autofill:save-prompt', listener);
     return () => ipcRenderer.removeListener('autofill:save-prompt', listener);
   },

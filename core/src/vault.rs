@@ -218,6 +218,13 @@ impl VaultState {
         storage::delete_credential(conn, id)
     }
 
+    /// Re-encrypt and replace the secret of an existing credential in place.
+    pub fn update_credential(&self, id: &str, secret: &str) -> VaultResult<()> {
+        let conn = self.conn()?;
+        let rec = encrypt_secret(secret.as_bytes())?;
+        storage::update_credential_secret(conn, id, &rec)
+    }
+
     // ---- TOTP ----
 
     /// Enroll: generate a secret, encrypt + store it (unconfirmed). Returns
@@ -361,6 +368,29 @@ mod tests {
             let secret = v.get_secret(&id).unwrap();
             assert_eq!(secret, "topsecret"); // KEM key persisted across reopen
         }
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn update_credential_replaces_secret_in_place() {
+        let dir = temp_dir();
+        let mut v = VaultState::new(&dir);
+        v.init("master-pw").unwrap();
+        let id = v
+            .add_credential("https://x.com", "alice", "old-secret", "X")
+            .unwrap();
+        assert_eq!(v.get_secret(&id).unwrap(), "old-secret");
+
+        v.update_credential(&id, "new-secret").unwrap();
+        assert_eq!(v.get_secret(&id).unwrap(), "new-secret");
+        // Updated in place — no duplicate row.
+        assert_eq!(v.list().unwrap().len(), 1);
+
+        // Updating an unknown id errors cleanly (no silent no-op).
+        assert!(matches!(
+            v.update_credential("does-not-exist", "x"),
+            Err(VaultError::NotFound(_))
+        ));
         std::fs::remove_dir_all(&dir).ok();
     }
 

@@ -39,11 +39,8 @@ test('enroll TOTP on a freshly created vault', async () => {
   await expect(chrome.getByTestId('webauthn-register')).toBeVisible();
 
   await chrome.getByTestId('totp-begin').click();
-  // Read the enrollment secret from the <small> element inside mfa-enroll.
-  // Targeting <small> avoids capturing surrounding button text that shares
-  // uppercase characters with the base32 alphabet.
-  totpSecret = (await chrome.locator('[data-testid="mfa-enroll"] small').textContent())!
-    .replace('Secret:', '').trim();
+  // Read the enrollment secret from its dedicated element (holds only the base32 key).
+  totpSecret = (await chrome.getByTestId('totp-secret').textContent())!.trim();
 
   const code = generateSync({ secret: totpSecret });
   await chrome.getByTestId('totp-confirm-code').fill(code);

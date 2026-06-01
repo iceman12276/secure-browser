@@ -8,6 +8,7 @@
   browser.init();
 </script>
 
+<h1 class="sr-only">Secure Browser</h1>
 <TabStrip />
 <Toolbar />
 <VaultSidebar />

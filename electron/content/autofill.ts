@@ -9,15 +9,37 @@ import type { Candidate, CaptureRequest, DetectedForms, FillRequest, FillResult 
 
 let detected: DetectedForms | null = null;
 
+// Forms already wired with a submit listener — avoid double-wiring on re-scan.
+const wired = new WeakSet<Element>();
+
+// Username-first flows (e.g. Google): the username is entered on an earlier step
+// or page, so by the time the password form is submitted its own scope may have
+// no username field. Remember the last username-like value the user typed and
+// fall back to it at capture time. (A username is not a secret; this is page-local.)
+let lastSeenUsername = '';
+function recordUsername(e: Event): void {
+  const t = e.target;
+  if (!(t instanceof HTMLInputElement)) return;
+  if (!['text', 'email', 'tel'].includes(t.type)) return;
+  if ((t.type === 'email' || /user|email|login|account/i.test(`${t.name} ${t.id}`)) && t.value) {
+    lastSeenUsername = t.value;
+  }
+}
+
+// Idempotent: detect forms, report them, and wire a submit listener on each form
+// exactly once. Safe to call repeatedly (on load and on DOM mutations) so forms
+// that appear after load (SPA / multi-step flows) still get wired.
 function scanAndReport(): void {
   const forms = detectForms(document);
   if (forms.length === 0) return;
   detected = { origin: location.origin, forms };
   ipcRenderer.send('autofill:detected', detected);
 
-  // Re-scan on submit to capture entered credentials.
+  const formEls = document.querySelectorAll('form');
   for (const f of forms) {
-    const formEl = document.querySelectorAll('form')[f.formIndex] ?? document.body;
+    const formEl = formEls[f.formIndex] ?? document.body;
+    if (wired.has(formEl)) continue;
+    wired.add(formEl);
     formEl.addEventListener(
       'submit',
       () => captureOnSubmit(f.usernameSelector, f.passwordSelector),
@@ -32,9 +54,13 @@ function captureOnSubmit(usernameSel: string | null, passwordSel: string): void 
   if (!pw || !pw.value) return;
   const payload: CaptureRequest = {
     origin: location.origin,
-    username: user?.value ?? '',
+    // Prefer this form's own username field; fall back to the username typed on
+    // an earlier step (username-first flows).
+    username: user?.value || lastSeenUsername || '',
     secret: pw.value,
   };
+  // Consume the remembered username so it can't mislabel a later, different login.
+  lastSeenUsername = '';
   ipcRenderer.invoke('autofill:capture', payload).catch((err: unknown) => {
     // Surface capture failures — do not swallow silently.
     console.error('[autofill] capture failed:', err instanceof Error ? err.message : String(err));
@@ -78,5 +104,44 @@ function fillForm(usernameSel: string | null, passwordSel: string, res: FillResu
   }
 }
 
-window.addEventListener('DOMContentLoaded', scanAndReport);
-window.addEventListener('beforeunload', removeOverlay);
+// Re-scan when forms or password fields are added after load (SPA / multi-step
+// flows). Gate on real form/password additions so our own overlay node never
+// triggers a re-scan loop. Debounced to coalesce bursts of mutations.
+let scanScheduled = false;
+function scheduleScan(): void {
+  if (scanScheduled) return;
+  scanScheduled = true;
+  setTimeout(() => {
+    scanScheduled = false;
+    scanAndReport();
+  }, 120);
+}
+const observer = new MutationObserver((mutations) => {
+  if (scanScheduled) return; // a re-scan is already queued — skip all per-node work
+  for (const m of mutations) {
+    for (const node of m.addedNodes) {
+      if (!(node instanceof Element)) continue;
+      if (node.matches('[data-testid="autofill-overlay"]')) continue; // our own overlay (carries no form/password)
+      if (node.matches('form, input[type="password"]') || node.querySelector('form, input[type="password"]')) {
+        scheduleScan();
+        return;
+      }
+    }
+  }
+});
+
+function start(): void {
+  scanAndReport();
+  document.addEventListener('input', recordUsername, { capture: true });
+  // An in-page (SPA) navigation starts a new login context; forget the username.
+  window.addEventListener('popstate', () => {
+    lastSeenUsername = '';
+  });
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+}
+
+window.addEventListener('DOMContentLoaded', start);
+window.addEventListener('beforeunload', () => {
+  observer.disconnect();
+  removeOverlay();
+});

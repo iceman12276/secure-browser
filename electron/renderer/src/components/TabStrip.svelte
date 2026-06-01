@@ -43,10 +43,18 @@
   .tab.active { background: var(--tab-active); color: var(--text); font-weight: 500; }
   .title { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .close {
+    position: relative;
     flex: 0 0 auto; width: 18px; height: 18px; display: flex;
     align-items: center; justify-content: center; border-radius: 5px;
     border: none; background: transparent; cursor: pointer; padding: 0;
     color: var(--text-dim); font-size: 14px;
+  }
+  /* Keep the glyph a tasteful 18px but expand the clickable target to 28px
+     (>= WCAG 2.2 AA 2.5.8 minimum of 24px) via a transparent inset overlay. */
+  .close::before {
+    content: ''; position: absolute;
+    top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 28px; height: 28px;
   }
   .close:hover { background: var(--border-strong); color: var(--text); }
   .new {

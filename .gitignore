@@ -25,6 +25,11 @@ test-results/
 playwright-report/
 .cache/
 
+# UX acceptance — transient per-run artifacts. The spec, ACCEPTANCE.md, and the
+# curated step screenshots (01-15) are the durable record; these regenerate each run.
+tests/ux/results.json
+tests/ux/screenshots/NET-*.png
+
 # Visual companion scratch (superpowers brainstorming)
 .superpowers/
 

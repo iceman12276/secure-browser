@@ -181,6 +181,15 @@ impl Vault {
     }
 
     #[napi]
+    pub fn update_credential(&self, id: String, secret: String) -> napi::Result<()> {
+        self.state
+            .lock()
+            .unwrap()
+            .update_credential(&id, &secret)
+            .map_err(Into::into)
+    }
+
+    #[napi]
     pub fn mfa_status(&self) -> MfaStatus {
         let s = self.state.lock().unwrap();
         MfaStatus {
